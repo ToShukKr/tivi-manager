@@ -11,7 +11,7 @@ RUN pip3 install \
       Flask-Cors \
       flask \
       bs4==0.0.1 \
-      supervisor==4.2.4
+      supervisor
 
 COPY ./config/ /
 
