@@ -41,4 +41,15 @@ def do_search(query, page=1):
     return result
 
 def getDownloadURL(url):
+    logger.info(f'Getting Download URL for : {url}')
     return ProviderAPI(url).getMovie('480p')
+
+def addToQueue(json_data):
+    kp_id = json_data['kp_id']
+    queue_file = os.path.join(QUEUE_DIR, f"{kp_id}.json")
+    with open(queue_file, 'w') as file:
+        json.dump(json_data, file, indent=4, ensure_ascii=False)
+    if os.path.exists(queue_file):
+        logger.info(f'Added to Queue : {kp_id}')
+        return True
+    return False

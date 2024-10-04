@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie List</title>
+    <title>TiVi DB Editor</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
     <style>
         body {
@@ -134,7 +134,7 @@
                     <hr></hr>
                     <div class="kp-input">
                         <input type="text" v-model="movie.kp_id" placeholder="Kinopoisk ID">
-                        <button class="action-button" @click="sendUrl(movie.link, movie.kp_id)">Add to TiVi DB</button>
+                        <button class="action-button" @click="sendUrl(movie.name, movie.link, movie.kp_id)">Add to TiVi DB</button>
                     </div>
                 </td>
             </tr>
@@ -214,13 +214,13 @@
                     this.fetchData();
                 }
             },
-            sendUrl(url, kp_id) {
+            sendUrl(name, url, kp_id) {
                 fetch(this.currentURL + '/api/v1/get-url', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ url: url, kp_id: kp_id })
+                    body: JSON.stringify({ name: name, url: url, kp_id: kp_id })
                 })
                 .then(response => {
                     return response.json().then(data => {

@@ -20,9 +20,8 @@ def get_url():
     json_data = request.get_json()
     if 'kp_id' not in json_data or not json_data['kp_id']:
         return jsonify({'error': 'kp_id is required!'}), 400
-    print(json_data)
-    print(getDownloadURL(json_data['url']))
+    addToQueue(json_data)
     return jsonify(json_data)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080)
+    app.run(debug=True, port=8080, host="0.0.0.0")
