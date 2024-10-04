@@ -1,0 +1,14 @@
+version: "2"
+
+services:
+  tivi-manger:
+    tty: true
+    entrypoint: /bin/bash
+    build: .
+    container_name: 'tivi-manger'
+    hostname: 'tivi-manger'
+    restart: 'always'
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./app:/app

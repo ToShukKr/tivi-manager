@@ -70,13 +70,13 @@
             background-color: #0056b3;
         }
         .action-button {
-            margin-top: 10px;
             padding: 5px 10px;
             background-color: #28a745;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            height: 37px;
         }
         .action-button:hover {
             background-color: #218838;
@@ -84,6 +84,24 @@
         .active {
             font-weight: bold;
             text-decoration: underline;
+        }
+        .kp-input {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .kp-input input {
+            flex: 1;
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        hr {
+            border: none;
+            height: 1px;
+            background-color: #b5b3b33d;
+            margin: 20px 0;
         }
     </style>
 </head>
@@ -108,10 +126,16 @@
                     <img :src="movie.poster" alt="Poster" class="poster">
                 </td>
                 <td>
-                    <h2><a :href="movie.link" target="_blank">{{ movie.name }}</a></h2>
-                    <p>Year: {{ movie.year }}</p>
-                    <p>Translation: {{ movie.translation }}</p>
-                    <button class="action-button" @click="sendUrl(movie.link)">Add to TiVi DB</button>
+                    <h2>
+                        <a :href="movie.link" target="_blank" v-html="movie.name"></a>
+                    </h2>
+                    <p>Year: <span v-html="movie.year"></span></p>
+                    <p>Translation: <span v-html="movie.translation"></span></p>
+                    <hr></hr>
+                    <div class="kp-input">
+                        <input type="text" v-model="movie.kp_id" placeholder="Kinopoisk ID">
+                        <button class="action-button" @click="sendUrl(movie.link, movie.kp_id)">Add to TiVi DB</button>
+                    </div>
                 </td>
             </tr>
         </tbody>
@@ -123,7 +147,7 @@
         <span v-if="current_page > 2">...</span>
         <span v-for="page in pagesArray" :key="page">
             <button @click="changePage(page)" :class="{ 'active': page === current_page }">
-                {{ page }}
+                <span v-html="page"></span>
             </button>
         </span>
         <span v-if="current_page < pages - 1">...</span>
@@ -136,6 +160,7 @@
     new Vue({
         el: '#app',
         data: {
+            currentURL: `${window.location.protocol}//${window.location.hostname}:${window.location.port}`,
             searchQuery: "",
             current_page: 1,
             pages: 1,
@@ -159,7 +184,7 @@
         },
         methods: {
             fetchData() {
-                fetch('http://127.0.0.1:8080/api/v1/search', {
+                fetch(this.currentURL + '/api/v1/search', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -189,28 +214,29 @@
                     this.fetchData();
                 }
             },
-            sendUrl(url) {
-                fetch('http://127.0.0.1:8080/api/v1/get-url', {
+            sendUrl(url, kp_id) {
+                fetch(this.currentURL + '/api/v1/get-url', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ url: url })
+                    body: JSON.stringify({ url: url, kp_id: kp_id })
                 })
                 .then(response => {
-                    if (response.ok) {
-                        alert('URL sent successfully!');
-                    } else {
-                        alert('Error sending URL.');
-                    }
+                    return response.json().then(data => {
+                        if (response.ok) {
+                            alert('Movies is added to queue');
+                        } else {
+                            alert(`Error: ${data.error || 'An error occurred.'}`);
+                        }
+                    });
                 })
                 .catch(error => {
-                    console.error('Error sending URL:', error);
+                    console.error('Error sending URL and kp_id:', error);
                 });
             }
         }
     });
 </script>
-
 </body>
 </html>
