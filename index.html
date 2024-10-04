@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie List</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+        .container {
+            width: 80%;
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .poster {
+            width: 100px;
+            height: auto;
+        }
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .pagination button {
+            margin: 0 5px;
+            padding: 5px 10px;
+        }
+        .search-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .search-bar button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-bar button:hover {
+            background-color: #0056b3;
+        }
+        .action-button {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .action-button:hover {
+            background-color: #218838;
+        }
+        .active {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app">
+    <h1>Movie List</h1>
+    <div class="search-bar">
+        <input type="text" v-model="searchQuery" placeholder="Enter movie title...">
+        <button @click="search">Search</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Poster</th>
+                <th>Information</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="movie in content" :key="movie.link">
+                <td>
+                    <img :src="movie.poster" alt="Poster" class="poster">
+                </td>
+                <td>
+                    <h2><a :href="movie.link" target="_blank">{{ movie.name }}</a></h2>
+                    <p>Year: {{ movie.year }}</p>
+                    <p>Translation: {{ movie.translation }}</p>
+                    <button class="action-button" @click="sendUrl(movie.link)">Add to TiVi DB</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="pagination">
+        <button @click="changePage(1)" :disabled="current_page <= 1">First</button>
+        <button @click="changePage(current_page - 1)" :disabled="current_page <= 1">Back</button>
+        <span v-if="current_page > 2">...</span>
+        <span v-for="page in pagesArray" :key="page">
+            <button @click="changePage(page)" :class="{ 'active': page === current_page }">
+                {{ page }}
+            </button>
+        </span>
+        <span v-if="current_page < pages - 1">...</span>
+        <button @click="changePage(current_page + 1)" :disabled="current_page >= pages">Next</button>
+        <button @click="changePage(pages)" :disabled="current_page >= pages">Last</button>
+    </div>
+</div>
+
+<script>
+    new Vue({
+        el: '#app',
+        data: {
+            searchQuery: "",
+            current_page: 1,
+            pages: 1,
+            content: []
+        },
+        computed: {
+            pagesArray() {
+                const pagesArray = [];
+                const startPage = Math.max(1, this.current_page - 1);
+                const endPage = Math.min(this.pages, this.current_page + 1);
+
+                for (let i = startPage; i <= endPage; i++) {
+                    pagesArray.push(i);
+                }
+
+                return pagesArray;
+            }
+        },
+        mounted() {
+            this.fetchData();
+        },
+        methods: {
+            fetchData() {
+                fetch('http://127.0.0.1:8080/api/v1/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: this.searchQuery,
+                        page: this.current_page
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    this.current_page = parseInt(data.current_page);
+                    this.pages = parseInt(data.pages);
+                    this.content = data.content;
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+            },
+            search() {
+                this.current_page = 1;
+                this.fetchData();
+            },
+            changePage(page) {
+                if (page >= 1 && page <= this.pages) {
+                    this.current_page = page;
+                    this.fetchData();
+                }
+            },
+            sendUrl(url) {
+                fetch('http://127.0.0.1:8080/api/v1/get-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url: url })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        alert('URL sent successfully!');
+                    } else {
+                        alert('Error sending URL.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error sending URL:', error);
+                });
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
