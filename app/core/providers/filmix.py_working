@@ -154,11 +154,11 @@ class ProviderAPI():
         raise ValueError('Error, episode or season not found')
 
 
-    def getMovie(self, quality="720p", translation_id=0):
+    def getMovie(self, quality, translation=None):
         if not quality in ["360p", "480p", "720p"]:
             available_res = '"360p", "480p", "720p"'
             raise ValueError(f'Resolution "{quality}" is not defined\nUse one of these: {available_res}')
-        content_url = self.decodeBase64(self.getStramData(self.url)['message']['translations']['video'][self.getTranslations()[translation_id]]).decode("UTF-8")
+        content_url = self.decodeBase64(self.getStramData(self.url)['message']['translations']['video'][self.getTranslations()[0]]).decode("UTF-8")
         return self.parseURLs(content_url, quality)
 
 
@@ -168,14 +168,8 @@ class ProviderAPI():
 # print(filmix.getSeasons())
 # print(filmix.getStream('1', '8', '720p'))
 
-# url = "https://filmix.my/mults/otechestvennye/52316-v-priklyucheniya-vasi-kurolesova-1981.html"
-# filmix = ProviderAPI(url)
-# print(filmix.name)
-# print(filmix.getMovie('720p'))
-
-
-url = "https://filmix.my/film/triller/6123-v-ff-terminator-2-sudnyy-den-1991.html"
+url = "https://filmix.my/mults/otechestvennye/52316-v-priklyucheniya-vasi-kurolesova-1981.html"
 filmix = ProviderAPI(url)
-
-print(filmix.getStramData(url))
-# print(filmix.getMovie())
+print(filmix.name)
+print(filmix.getSeasons())
+print(filmix.getMovie('720p'))

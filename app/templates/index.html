@@ -180,7 +180,9 @@
             }
         },
         mounted() {
-            this.fetchData();
+            if (this.searchQuery.len > 0) {
+              this.fetchData();
+            }
         },
         methods: {
             fetchData() {
@@ -220,7 +222,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ name: name, url: url, kp_id: kp_id })
+                    body: JSON.stringify({ name: name, type: "movies", url: url, kp_id: kp_id })
                 })
                 .then(response => {
                     return response.json().then(data => {

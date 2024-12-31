@@ -3,7 +3,8 @@ FROM python:3.12.3-slim-bookworm
 RUN apt update && \
     apt install -y \
     ffmpeg \
-    aria2
+    aria2 \
+    procps
 
 RUN pip3 install \
       requests==2.28.1 \
@@ -11,12 +12,14 @@ RUN pip3 install \
       Flask-Cors \
       flask \
       bs4==0.0.1 \
-      supervisor
-
-COPY ./config/ /
+      Flask-APScheduler==1.13.1 \
+      internetarchive==4.1.0
 
 COPY ./app /app
 
 WORKDIR /app
 
-CMD /usr/local/bin/supervisord --nodaemon -c /etc/supervisor/supervisord.conf
+RUN ln -s /app/tivi-manager.py  /usr/bin/tivi-manager && \
+    ln -s /app/tivi-queue.py  /usr/bin/tivi-queue
+
+CMD tivi-manager
