@@ -143,6 +143,37 @@ def updateMetadataFile(queue_data):
     except Exception as e:
         logger.error(e)
 
+def getDownloadInfo():
+    DL_RESULT = {}
+    log_files = glob.glob(os.path.join(LOGS_DIR, f'{DOWNLOAD_THREAD_PREFIX_NAME}_*.log'))
+    for log in log_files:
+        with open(log) as file_in:
+            RESULT = []
+            for line in file_in:
+                try:
+                    RESULT.append(line[line.index('[#')+len('[#'):line.index(']')])
+                except:
+                    pass
+        try:
+            download_file_name = log[log.index(f'{DOWNLOAD_THREAD_PREFIX_NAME}=')+len(f'{DOWNLOAD_THREAD_PREFIX_NAME}='):log.index('.log')]
+            download_result = RESULT[-1].partition(' ')[2]
+            DL_RESULT[download_file_name] = download_result
+        except:
+            pass
+    return DL_RESULT
+
+def getLastLogLine():
+    log_files = glob.glob(os.path.join(LOGS_DIR, f'{CONVERT_THREAD_PREFIX_NAME}_*.log'))
+    for log in log_files:
+        with open(log, 'r') as file:
+            lines = file.readlines()
+            if lines:
+                return lines[-1].strip()
+            else:
+                return None
+
+
+
 # def remove_fake_header(input_bin, output_video, header="TIVIHEADER"):
 #     header_length = len(header.encode('utf-8'))
 #     with open(input_bin, 'rb') as in_file:
