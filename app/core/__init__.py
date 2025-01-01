@@ -1,8 +1,11 @@
 from core.variables import *
 from core.providers.filmix import *
 
+def getRandomName(len=8):
+     return ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=len))
+
 def do_search(query, page=1):
-    url = 'https://filmix.my/engine/ajax/sphinx_search.php'
+    url = f'{FILMIX_URL}/engine/ajax/sphinx_search.php'
     headers = {'x-requested-with': 'XMLHttpRequest'}
     data = {'story': query, 'search_start': page}
     response = requests.post(url, headers=headers, data=data)
@@ -40,92 +43,110 @@ def do_search(query, page=1):
             result['pages'] = int(last_page)
     return result
 
-def getActiveQueue():
-    result = subprocess.run(['ps', '-aux'], capture_output=True, text=True)
-    if result.returncode != 0:
-        logger.error(f"Failed to get processess list: {result.stderr}")
-        return []
-    processes = result.stdout.splitlines()
-    tivi_processes = []
-    for process in processes:
-        match = re.search(r'tivi-queue (\w+) (\d+)', process)
-        if match:
-            process_type = match.group(1)
-            kp_id = match.group(2)
-            with open(os.path.join(QUEUE_DIR, f"{kp_id}.json"), 'r') as file:
-                data = json.load(file)
-            tivi_processes.append({"type": process_type, "kp_id": int(kp_id), "name": data['name'], "url": data['url']})
-    return tivi_processes
+def currentActiveDownloads():
+    return len([file for file in os.listdir(IN_PROGRESS) if file.endswith('.json')])
 
 @retry
-def getDownloadURL(url):
+def getDownloadURL(url, translation_id=0):
     logger.info(f'Getting Download URL for : {url}')
-    return ProviderAPI(url).getMovie('480p')
-
-def addToQueue(json_data):
-    kp_id = json_data['kp_id']
-    queue_file = os.path.join(QUEUE_DIR, f"{kp_id}.json")
-    with open(queue_file, 'w') as file:
-        json.dump(json_data, file, indent=4, ensure_ascii=False)
-    if os.path.exists(queue_file):
-        logger.info(f'Added to Queue : {kp_id}')
-        return True
-    return False
-
-def getQueueData(kp_id):
-    with open(os.path.join(QUEUE_DIR, f"{kp_id}.json"), 'r') as file:
-        data = json.load(file)
-    return data
-
-def getQueueList():
-    return [f[:-5] for f in os.listdir(QUEUE_DIR) if f.endswith('.json')]
+    return ProviderAPI(url).getMovie(DEFAULT_QUALITY, translation_id)
 
 @retry
-def downloadCacheFile(link, kp_id):
-    logger.info(f'Downloading: {kp_id}')
-    logfile = os.path.join(LOGS_DIR, f"{DOWNLOAD_THREAD_PREFIX_NAME}_{kp_id}.log")
-    DOWNLOAD_FILENAME = f"{DOWNLOAD_THREAD_PREFIX_NAME}-{kp_id}{VIDEO_FILE_EXTENSION}"
-    os.system(f'aria2c -k 1M -s {DOWNLOAD_THREADS} -x {DOWNLOAD_THREADS} -o "..{os.path.join(CACHE_DIR, f"{DOWNLOAD_FILENAME}")}" "{link}" > {logfile} 2>&1')
+def downloadCacheFile(link, queue_data):
+    logger.info(f'Downloading: "{queue_data['name']}"')
+    logfile = os.path.join(LOGS_DIR, f"{DOWNLOAD_THREAD_PREFIX_NAME}_{queue_data['uid']}.log")
+    os.system(f'aria2c -k 1M -s {DOWNLOAD_THREADS} -x {DOWNLOAD_THREADS} -o "..{os.path.join(CACHE_DIR, f"{queue_data['output_filename']}")}" "{link}" > {logfile} 2>&1')
     if os.path.exists(logfile):
         os.remove(logfile)
-    logger.info(f'Successfully downloaded: {kp_id}')
+    logger.info(f'Successfully downloaded: "{queue_data['name']}"')
+    return True
 
-def convertVideo(kp_id):
-    logger.info(f'Converting: {kp_id}')
-    DOWNLOAD_FILENAME = f"{DOWNLOAD_THREAD_PREFIX_NAME}-{kp_id}{VIDEO_FILE_EXTENSION}"
-    logfile = os.path.join(LOGS_DIR, f"convert_{kp_id}.log")
-    os.system(f'ffmpeg -y -i {os.path.join(CACHE_DIR, f"{DOWNLOAD_FILENAME}")} -vf "scale=1920:1080,setsar=1" -b:v 4M -b:a 192k -ac 2 -ar 44100 -c:a aac -c:v libx264 -preset slow -crf 22 {os.path.join(CACHE_DIR, f"{kp_id}{VIDEO_FILE_EXTENSION}")} > {logfile} 2>&1')
+def convertVideo(queue_data):
+    logger.info(f'Converting: "{queue_data['name']}"')
+    DOWNLOAD_FILENAME = os.path.join(CACHE_DIR, f"{queue_data['output_filename']}")
+    OUTPUT_FILENAME = os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename']}")
+    logfile = os.path.join(LOGS_DIR, f"{CONVERT_THREAD_PREFIX_NAME}_{queue_data['uid']}.log")
+    os.system(f'ffmpeg -y -i {DOWNLOAD_FILENAME} -vf "scale=1920:1080,setsar=1" -b:v 4M -b:a 192k -ac 2 -ar 44100 -c:a aac -c:v libx264 -preset faster -crf 22 {OUTPUT_FILENAME} > {logfile} 2>&1')
     if os.path.exists(logfile):
         os.remove(logfile)
-    logger.info(f'Successfully converting: {kp_id}')
+    logger.info(f'Successfully converting: "{queue_data['name']}"')
+    return True
 
+def videoToBin(queue_data, header="TIVIHEADER"):
+    input_video = os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename']}")
+    output_bin = os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename'].replace(VIDEO_FILE_EXTENSION, BIN_FILE_EXTENSION)}")
+    try:
+        with open(output_bin, 'wb') as out_file:
+            out_file.write(header.encode('utf-8'))
+            with open(input_video, 'rb') as video_file:
+                out_file.write(video_file.read())
+        logger.info(f"File '{input_video}' encrypted to '{output_bin}'")
+        if os.path.exists(input_video):
+            os.remove(input_video)
+        return output_bin
+    except Exception as e:
+        logger.error(f"Error encrypting file: {e}")
+        return False
 
-def add_fake_header(input_video, output_bin, header="TIVIHEADER"):
-    with open(output_bin, 'wb') as out_file:
-        out_file.write(header.encode('utf-8'))
-        with open(input_video, 'rb') as video_file:
-            out_file.write(video_file.read())
+@retry(stop_max_attempt_number=60, wait_fixed=2000)
+def uploadToBucket(file_path, verbose=True):
+    metadata = {
+        'title': ARCHIVE_BUCKET_NAME,
+        'collection': 'opensource',
+        'mediatype': 'data',
+        'scanner': 'Python Uploader',
+        'subject': 'single_file_upload'
+    }
+    item = internetarchive.get_item(ARCHIVE_BUCKET_NAME)
+    logger.info(f"Uploading to bucket: {file_path}")
+    try:
+        item.upload(file_path, access_key=ARCHIVE_ACCESS_KEY_ID, secret_key=ARCHIVE_SECRET_ACCESS_KEY, metadata=metadata, verbose=verbose)
+        logger.info(f"File '{file_path}' successfully uploaded")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to upload '{file_path}': {e}")
+        return False
 
-# def remove_fake_header(input_bin, output_video, header_size=10):
-#     # Открываем бинарный файл с заголовком
-#     with open(input_bin, 'rb') as bin_file:
-#         # Пропускаем первые `header_size` байт (размер заголовка)
-#         bin_file.seek(header_size)
-#
-#         # Читаем оставшуюся часть файла и записываем её в новый видеофайл
-#         with open(output_video, 'wb') as video_file:
-#             video_file.write(bin_file.read())
+def uploadMetadataToBucket():
+    if uploadToBucket(METADATA_YT_FILE, False):
+        logger.info(f"Successfully updating metadata file")
+        return True
 
-def uploadToArchiveORG(kp_id):
-    old_file = os.path.join(CACHE_DIR, f"{kp_id}{VIDEO_FILE_EXTENSION}")
-    new_file = os.path.join(CACHE_DIR, f"{kp_id}.bin")
-    add_fake_header(old_file, new_file)
-    aws_access_key_id = "NNUXnuHlaYYyTl67"
-    aws_secret_access_key = "WKwXgP3VStr07nFY"
-    identifier = "tivi_temp"
-    md = {'title': identifier, 'collection': identifier, 'mediatype': 'data', 'scanner': 'VM Brasseur', 'subject': identifier}
-    item = internetarchive.get_item(identifier)
-    item.upload(new_file, access_key=aws_access_key_id, secret_key=aws_secret_access_key, metadata=md, verbose=True)
-    if os.path.exists(new_file):
-        os.remove(new_file)
-    logger.info(f"Item URL is: https://archive.org/details/{identifier}")
+def getMetadataFromBucket():
+    logger.info(f"Getting metadata file from the bucket")
+    metadata_archive_bucket = f"{ARCHIVE_URL}/download/{ARCHIVE_BUCKET_NAME}/metadata.json"
+    try:
+        response = requests.get(metadata_archive_bucket, stream=True)
+        if response.status_code == 200:
+            with open(METADATA_YT_FILE, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+            logger.info(f"Metadata file successfully recived from bucket")
+            return True
+        else:
+            logger.info(f"Failed to update or get metadata file: {response.status_code}")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to update metadata file {METADATA_YT_FILE}: {e}")
+        return False
+
+def updateMetadataFile(queue_data):
+    try:
+        if not os.path.exists(METADATA_YT_FILE):
+            getMetadataFromBucket()
+        with open(METADATA_YT_FILE, 'r', encoding='utf-8') as file:
+            data = json.load(file)
+        data.append(queue_data)
+        with open(METADATA_YT_FILE, 'w', encoding='utf-8') as file:
+            json.dump(data, file, ensure_ascii=False, indent=4)
+        uploadMetadataToBucket()
+    except Exception as e:
+        logger.error(e)
+
+# def remove_fake_header(input_bin, output_video, header="TIVIHEADER"):
+#     header_length = len(header.encode('utf-8'))
+#     with open(input_bin, 'rb') as in_file:
+#         in_file.seek(header_length)
+#         remaining_data = in_file.read()
+#     with open(output_video, 'wb') as out_file:
+#         out_file.write(remaining_data)

@@ -32,6 +32,15 @@ new Vue({
         }
     },
     methods: {
+        notifyError(message) {
+          this.$snotify.error(message, { timeout: 5000, showProgressBar: true, closeOnClick: true, pauseOnHover: true });
+        },
+        notifySucess(message) {
+          this.$snotify.success(message, { timeout: 5000, showProgressBar: true, closeOnClick: true, pauseOnHover: true });
+        },
+        notifyInfo(message) {
+          this.$snotify.info(message, { timeout: 5000, showProgressBar: true, closeOnClick: true, pauseOnHover: true });
+        },
         async fetchFilmixData() {
             const response = await axios.post(`${this.currentURL}/api/v1/search`, { name: this.searchQuery, page: this.current_page }, { headers: { "Content-Type": "application/json" } });
             const data = response.data;
@@ -68,20 +77,18 @@ new Vue({
             this.modalName = name;
             this.modalLink = url;
             this.showModal = true;
-            console.log(name)
-            console.log(url)
-            console.log(this.selected_filmix_id)
         },
         closeModal() {
             this.showModal = false;
         },
-        addToDb() {
-            console.log('Adding to DB:', {
-                name: this.modalName,
-                id: this.selected_filmix_id,
-                translation: this.selectedTranslation
-            });
-            this.closeModal();
+        async addToDb() {
+          const response = await axios.post(`${this.currentURL}/api/v1/add-to-queue`, { "id": this.selected_filmix_id, "url": this.modalLink, "name": this.modalName, "translation": this.selectedTranslation }, { headers: { "Content-Type": "application/json" } });
+          if (response.data.status){
+            this.notifySucess(response.data.message)
+          } else {
+            this.notifyError(response.data.message)
+          }
+          this.closeModal();
         }
     }
 });
