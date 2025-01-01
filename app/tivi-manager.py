@@ -1,6 +1,7 @@
 #!/usr/local/bin/python
 # curl -X POST -H "Content-Type: application/json" -d '{"name": "Секретные материалы", "page": "1"}' http://127.0.0.1:8080/api/v1/search
 # curl -X POST -H "Content-Type: application/json" -d '{"url": "https://filmix.fm/films/komedia/16490-trudnyy-rebenok-2-1991.html"}' http://127.0.0.1:8080/api/v1/get-url
+# curl -X POST -H "Content-Type: application/json" -d '{"url": "https://filmix.fm/films/komedia/16490-trudnyy-rebenok-2-1991.html"}' http://127.0.0.1:8080/api/v1/get-translate
 # curl -X POST -H "Content-Type: application/json" http://127.0.0.1:8080/api/v1/get-list-queue
 from core import *
 
@@ -25,6 +26,16 @@ def search():
         return jsonify({'error': 'Missing name or page in JSON data'}), 400
     return jsonify(do_search(name, page))
 
+@app.route('/api/v1/get-translate', methods=['POST'])
+def get_translate():
+    json_data = request.get_json()
+    url = json_data.get('url')
+    if not url:
+        return jsonify({'error': 'Missing url in JSON data'}), 400
+    filmix = ProviderAPI(url)
+    translations = [{"id": idx, "name": name} for idx, name in enumerate(filmix.getTranslations())]
+    return translations
+
 @app.route('/api/v1/get-url', methods=['POST'])
 def get_url():
     json_data = request.get_json()
@@ -37,18 +48,18 @@ def get_url():
 def get_list_queue():
     return jsonify(getActiveQueue())
 
-@scheduler.task('interval', id='runQueueJob', seconds=60)
-def job():
-    if len(getActiveQueue()) < MAX_QUEUE:
-        if getQueueList():
-            kp_id = getQueueList()[0]
-            type = getQueueData(kp_id)['type']
-            logger.info(f"Running a NEW QUEUE: {kp_id}")
-            os.system(f"tivi-queue {type} {kp_id} &")
-        else:
-            logger.info(f"Checking for running new queues")
-    else:
-        logger.info(f"QUEUE Is already operating: {getActiveQueue()[0]['kp_id']}")
+# @scheduler.task('interval', id='runQueueJob', seconds=60)
+# def job():
+#     if len(getActiveQueue()) < MAX_QUEUE:
+#         if getQueueList():
+#             kp_id = getQueueList()[0]
+#             type = getQueueData(kp_id)['type']
+#             logger.info(f"Running a NEW QUEUE: {kp_id}")
+#             os.system(f"tivi-queue {type} {kp_id} &")
+#         else:
+#             logger.info(f"Checking for running new queues")
+#     else:
+#         logger.info(f"QUEUE Is already operating: {getActiveQueue()[0]['kp_id']}")
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080, host="0.0.0.0")

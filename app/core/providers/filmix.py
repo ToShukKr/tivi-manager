@@ -174,8 +174,8 @@ class ProviderAPI():
 # print(filmix.getMovie('720p'))
 
 
-url = "https://filmix.my/film/triller/6123-v-ff-terminator-2-sudnyy-den-1991.html"
-filmix = ProviderAPI(url)
-
-print(filmix.getStramData(url))
+# url = "https://filmix.my/film/triller/6123-v-ff-terminator-2-sudnyy-den-1991.html"
+# filmix = ProviderAPI(url)
+#
+# print(filmix.getStramData(url))
 # print(filmix.getMovie())

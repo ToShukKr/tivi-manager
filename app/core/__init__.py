@@ -2,7 +2,7 @@ from core.variables import *
 from core.providers.filmix import *
 
 def do_search(query, page=1):
-    url = 'https://filmix.fm/engine/ajax/sphinx_search.php'
+    url = 'https://filmix.my/engine/ajax/sphinx_search.php'
     headers = {'x-requested-with': 'XMLHttpRequest'}
     data = {'story': query, 'search_start': page}
     response = requests.post(url, headers=headers, data=data)
