@@ -108,13 +108,13 @@ def job():
         except Exception as e:
             logger.error(e)
     else:
-        logger.info(f'Active number of queue is: {currentActiveDownloads()}')
         download_result = getDownloadInfo()
         convert_result = getLastLogLine()
         if download_result:
-            logger.info(download_result)
+            logger.info(f"Active number of queue is: {currentActiveDownloads()}. Downloading status: {download_result}")
         if convert_result:
-            logger.info(convert_result)
+            result = ', '.join(part for part in convert_result.split() if part.startswith(('time=', 'speed=')))
+            logger.info(f"Active number of queue is: {currentActiveDownloads()}. Converting status: {result}")
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080, host="0.0.0.0")
