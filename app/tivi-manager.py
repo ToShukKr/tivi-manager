@@ -11,7 +11,7 @@ app.config.from_object(Config)
 scheduler = APScheduler()
 scheduler.init_app(app)
 scheduler.start()
-logging.getLogger('apscheduler').setLevel(logging.WARNING)
+logging.getLogger('apscheduler').setLevel(logging.INFO)
 
 getMetadataFromBucket()
 
@@ -50,7 +50,7 @@ def add_to_queue():
     uid = getRandomName()
     queue_template = {
         "uid": uid,
-        "kp_id": uid,
+        "kp_id": f"{id}{uid}",
         "fx_id": id,
         "output_filename": f"{id}_{uid}.mp4",
         "url": url,
@@ -103,7 +103,7 @@ def job():
             updateMetadataFile(queue_current_data)
             if os.path.exists(queue_path):
                 os.remove(queue_path)
-            if os.pth.exists(in_progress_path):
+            if os.path.exists(in_progress_path):
                 os.remove(in_progress_path)
         except Exception as e:
             logger.error(e)

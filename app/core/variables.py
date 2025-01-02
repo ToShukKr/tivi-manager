@@ -29,6 +29,7 @@ CACHE_DIR = os.path.join("/", "cache")
 UPLOAD_CACHE_DIR = os.path.join(DATA_DIR, "cache")
 LOGS_DIR = os.path.join(DATA_DIR, 'logs')
 LOGS_APP_FILE = os.path.join(LOGS_DIR, 'tivi-manager.log')
+UPLOAD_MARKER = os.path.join(LOGS_DIR, "upload.marker")
 DOWNLOAD_THREADS = 16
 DOWNLOAD_THREAD_PREFIX_NAME = "download"
 CONVERT_THREAD_PREFIX_NAME = "convert"
@@ -39,6 +40,7 @@ ARCHIVE_URL = 'https://archive.org'
 METADATA_YT_FILE = os.path.join("/", 'metadata.json')
 
 ARCHIVE_BUCKET_NAME = "tivi_tmp"
+ARCHIVE_METADATA_BUCKET_NAME = "tivi_db_metadata"
 ARCHIVE_ACCESS_KEY_ID = "GRQdiTvvzzYvlipD"
 ARCHIVE_SECRET_ACCESS_KEY = "x9b0S8iPZyEuC79d"
 
