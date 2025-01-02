@@ -91,13 +91,13 @@ def videoToBin(queue_data, header="TIVIHEADER"):
 @retry(stop_max_attempt_number=60, wait_fixed=2000)
 def uploadToBucket(file_path, bucket_name=ARCHIVE_BUCKET_NAME, verbose=True):
     metadata = {
-        'title': ARCHIVE_BUCKET_NAME,
+        'title': bucket_name,
         'collection': 'opensource',
         'mediatype': 'data',
         'scanner': 'Python Uploader',
         'subject': 'single_file_upload'
     }
-    item = internetarchive.get_item(ARCHIVE_BUCKET_NAME)
+    item = internetarchive.get_item(bucket_name)
     logger.info(f"Uploading to bucket: {file_path}")
     try:
         open(UPLOAD_MARKER, 'w').close()
@@ -119,7 +119,7 @@ def uploadMetadataToBucket():
 
 def getMetadataFromBucket():
     logger.info(f"Getting metadata file from the bucket")
-    metadata_archive_bucket = f"{ARCHIVE_URL}/download/{ARCHIVE_BUCKET_NAME}/metadata.json"
+    metadata_archive_bucket = f"{ARCHIVE_URL}/download/{ARCHIVE_METADATA_BUCKET_NAME}/metadata.json"
     try:
         response = requests.get(metadata_archive_bucket, stream=True)
         if response.status_code == 200:

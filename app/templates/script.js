@@ -11,7 +11,9 @@ new Vue({
         modalName: "",
         modalLink: "",
         selectedTranslation: "",
-        translations: []
+        translations: [],
+        currentQueueStatus: {},
+        currentInProgressStatus: {}
     },
     computed: {
         pagesArray() {
@@ -49,8 +51,15 @@ new Vue({
             this.content = data.content;
         },
         async fetchTranslations(url) {
+          this.selectedTranslation = ""
+          this.translations = []
           const response = await axios.post(`${this.currentURL}/api/v1/get-translate`, { "url": url }, { headers: { "Content-Type": "application/json" } });
           this.translations = response.data
+        },
+        async getQueue() {
+          const response = await axios.post(`${this.currentURL}/api/v1/get-list-queue`, { }, { headers: { "Content-Type": "application/json" } });
+          this.currentQueueStatus = response.data.result.queue
+          this.currentInProgressStatus = response.data.result.in_progress[0]
         },
         search() {
             this.current_page = 1;
@@ -90,6 +99,9 @@ new Vue({
           }
           this.closeModal();
         }
+    },
+    beforeMount() {
+        this.getQueue()
     }
 });
 
@@ -103,3 +115,17 @@ links.forEach(link => {
     link.classList.remove('active');
   }
 });
+
+// Spoiler
+function toggleSpoiler() {
+    const spoiler = document.querySelector('.spoiler');
+    const icon = document.querySelector('.spoiler-toggle i');
+    spoiler.classList.toggle('open');
+    if (spoiler.classList.contains('open')) {
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    } else {
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    }
+}

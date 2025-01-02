@@ -17,7 +17,11 @@ getMetadataFromBucket()
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', current_path=request.path)
+
+@app.route('/movies')
+def movies():
+    return render_template('index.html', current_path=request.path)
 
 @app.route('/api/v1/search', methods=['POST'])
 def search():
@@ -58,6 +62,7 @@ def add_to_queue():
         "translation": translation,
         "type": "movie",
         "bucket": ARCHIVE_BUCKET_NAME,
+        "add_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "data": []
         }
     queue_file = os.path.join(QUEUE_DIR, f"{id}_{uid}.json")
@@ -68,12 +73,31 @@ def add_to_queue():
         return jsonify({"status": True, "message": f"Successfully added '{name} ({translation['name']})' to queue", "result": []}), 200
     return jsonify({"status": False, "message": f"Failed to add '{name} ({translation['name']})' to queue", "result": []}), 200
 
-# @app.route('/api/v1/get-list-queue', methods=['POST'])
-# def get_list_queue():
-#     return jsonify(getActiveQueue())
+@app.route('/api/v1/get-list-queue', methods=['POST'])
+def get_list_queue():
+    result = {"queue": [], "in_progress": []}
+    if os.path.exists(QUEUE_DIR) and os.path.isdir(QUEUE_DIR):
+        for file_name in os.listdir(QUEUE_DIR):
+            file_path = os.path.join(QUEUE_DIR, file_name)
+            if os.path.isfile(file_path) and file_name.endswith('.json'):
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    content = json.load(file)
+                    result["queue"].append(content)
+
+    json_files = [file for file in os.listdir(IN_PROGRESS) if file.endswith('.json')]
+    if not json_files:
+        logger.debug(f'Queue directory is empty')
+        return False
+    first_queue_file = json_files[0]
+    with open(os.path.join(IN_PROGRESS, first_queue_file), 'r', encoding='utf-8') as file:
+        content = json.load(file)
+    result["in_progress"].append(content)
+    result["in_progress"][0]["translation"] = str(content['translation']['name'])
+    return jsonify({"status": True, "message": f"List of qeues and in progress", "result": result}), 200
 
 @scheduler.task('interval', id='runQueueJob', seconds=60)
 def job():
+    return
     # TODO
     # Check if file already in DB
     # Add current time to object
@@ -82,7 +106,7 @@ def job():
             json_files = [file for file in os.listdir(QUEUE_DIR) if file.endswith('.json')]
 
             if not json_files:
-                logger.error(f'Queue directory is empty')
+                logger.debug(f'Queue directory is empty')
                 return False
 
             first_queue_file = json_files[0]
