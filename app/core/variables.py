@@ -40,8 +40,8 @@ DEFAULT_QUALITY = '720p'
 ARCHIVE_URL = 'https://archive.org'
 METADATA_YT_FILE = os.path.join("/", 'metadata.json')
 
-ARCHIVE_BUCKET_NAME = "tivi_tmp"
-ARCHIVE_METADATA_BUCKET_NAME = "tivi_db_metadata"
+ARCHIVE_BUCKET_NAME = "tividb_m1"
+ARCHIVE_METADATA_BUCKET_NAME = "tividb_metadata"
 ARCHIVE_ACCESS_KEY_ID = "GRQdiTvvzzYvlipD"
 ARCHIVE_SECRET_ACCESS_KEY = "x9b0S8iPZyEuC79d"
 
