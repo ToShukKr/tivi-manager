@@ -66,7 +66,7 @@ def convertVideo(queue_data):
     DOWNLOAD_FILENAME = os.path.join(CACHE_DIR, f"{queue_data['output_filename']}")
     OUTPUT_FILENAME = os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename']}")
     logfile = os.path.join(LOGS_DIR, f"{CONVERT_THREAD_PREFIX_NAME}_{queue_data['uid']}.log")
-    os.system(f'ffmpeg -y -i {DOWNLOAD_FILENAME} -vf "scale=1920:1080,setsar=1" -b:v 4M -b:a 192k -ac 2 -ar 44100 -c:a aac -c:v libx264 -preset faster -crf 22 -af "loudnorm" {OUTPUT_FILENAME} > {logfile} 2>&1')
+    os.system(f'ffmpeg -y -i {DOWNLOAD_FILENAME} -vf "scale=1920:1080,setsar=1" -b:v 4M -b:a 192k -ac 2 -ar 44100 -c:a aac -c:v libx264 -preset faster -crf 22 {OUTPUT_FILENAME} > {logfile} 2>&1')
     if os.path.exists(logfile):
         os.remove(logfile)
     logger.info(f'Successfully converting: "{queue_data['name']}"')

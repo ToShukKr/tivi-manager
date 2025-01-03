@@ -97,7 +97,6 @@ def get_list_queue():
 
 @scheduler.task('interval', id='runQueueJob', seconds=60)
 def job():
-    return
     # TODO
     # Check if file already in DB
     # Add current time to object
@@ -141,4 +140,4 @@ def job():
             logger.info(f"Active number of queue is: {currentActiveDownloads()}. Converting status: {result}")
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080, host="0.0.0.0")
+    app.run(debug=os.getenv("DEBUG", False), port=8080, host="0.0.0.0")
