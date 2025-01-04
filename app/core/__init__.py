@@ -88,7 +88,7 @@ def videoToBin(queue_data, header="TIVIHEADER"):
         logger.error(f"Error encrypting file: {e}")
         return False
 
-@retry(stop_max_attempt_number=60, wait_fixed=2000)
+@retry
 def uploadToBucket(file_path, bucket_name=ARCHIVE_BUCKET_NAME, verbose=True):
     metadata = {
         'title': bucket_name,
@@ -99,18 +99,13 @@ def uploadToBucket(file_path, bucket_name=ARCHIVE_BUCKET_NAME, verbose=True):
     }
     item = internetarchive.get_item(bucket_name)
     logger.info(f"Uploading to bucket: {file_path}")
-    try:
-        open(UPLOAD_MARKER, 'w').close()
-        item.upload(file_path, access_key=ARCHIVE_ACCESS_KEY_ID, secret_key=ARCHIVE_SECRET_ACCESS_KEY, metadata=metadata, verbose=verbose)
-        logger.info(f"File '{file_path}' successfully uploaded")
-        if os.path.exists(UPLOAD_MARKER):
-            os.remove(UPLOAD_MARKER)
+    open(UPLOAD_MARKER, 'w').close()
+    item.upload(file_path, access_key=ARCHIVE_ACCESS_KEY_ID, secret_key=ARCHIVE_SECRET_ACCESS_KEY, metadata=metadata, verbose=verbose)
+    logger.info(f"File '{file_path}' successfully uploaded")
+    if os.path.exists(UPLOAD_MARKER):
+        os.remove(UPLOAD_MARKER)
         return True
-    except Exception as e:
-        logger.error(f"Failed to upload '{file_path}': {e}")
-        if os.path.exists(UPLOAD_MARKER):
-            os.remove(UPLOAD_MARKER)
-        return False
+    return False
 
 def uploadMetadataToBucket():
     if uploadToBucket(METADATA_YT_FILE, ARCHIVE_METADATA_BUCKET_NAME, False):
