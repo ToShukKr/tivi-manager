@@ -14,6 +14,7 @@ from retrying import retry
 from flask_cors import CORS
 from bs4 import BeautifulSoup
 from datetime import datetime
+from subprocess import PIPE, run
 from flask_apscheduler import APScheduler
 from flask import Flask, request, jsonify, render_template
 
@@ -38,6 +39,7 @@ VIDEO_FILE_EXTENSION = '.mp4'
 BIN_FILE_EXTENSION = '.bin'
 DEFAULT_QUALITY = '720p'
 ARCHIVE_URL = 'https://archive.org'
+DISABLE_QUEUE = os.getenv("DISABLE_QUEUE", False)
 METADATA_YT_FILE = os.path.join("/", 'metadata.json')
 ARCHIVE_BUCKET_NAME = os.getenv("ARCHIVE_BUCKET_NAME")
 ARCHIVE_METADATA_BUCKET_NAME = os.getenv("ARCHIVE_METADATA_BUCKET_NAME")

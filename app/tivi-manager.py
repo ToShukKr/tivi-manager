@@ -3,6 +3,7 @@
 # curl -X POST -H "Content-Type: application/json" -d '{"url": "https://filmix.fm/films/komedia/16490-trudnyy-rebenok-2-1991.html"}' http://127.0.0.1:8080/api/v1/get-translate
 # curl -X POST -H "Content-Type: application/json" -d '{"id": 12, "name": "Трудный ребенок", "url": "https://filmix.fm/films/komedia/16490-trudnyy-rebenok-2-1991.html", "translation": {"id":0, "name":"LostFilm"}}' http://127.0.0.1:8080/api/v1/add-to-queue
 # curl -X POST -H "Content-Type: application/json" http://127.0.0.1:8080/api/v1/get-list-queue
+# curl -X POST -H "Content-Type: application/json" http://127.0.0.1:8080/api/v1/get-metadata
 from core import *
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
@@ -63,6 +64,7 @@ def add_to_queue():
         "type": "movie",
         "bucket": ARCHIVE_BUCKET_NAME,
         "add_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "duration": "",
         "data": []
         }
     queue_file = os.path.join(QUEUE_DIR, f"{id}_{uid}.json")
@@ -72,6 +74,13 @@ def add_to_queue():
         logger.info(f'Added to Queue : "{name} ({translation['name']})"')
         return jsonify({"status": True, "message": f"Successfully added '{name} ({translation['name']})' to queue", "result": []}), 200
     return jsonify({"status": False, "message": f"Failed to add '{name} ({translation['name']})' to queue", "result": []}), 200
+
+@app.route('/api/v1/get-metadata', methods=['POST'])
+def get_metadata():
+    if os.path.exists(METADATA_YT_FILE):
+        with open(METADATA_YT_FILE, 'r', encoding='utf-8') as file:
+            return jsonify({"status": True, "message": f"Metadata object", "result": json.load(file)}), 200
+    return jsonify({"status": False, "message": f"Failed to read metadata file", "result": []}), 200
 
 @app.route('/api/v1/get-list-queue', methods=['POST'])
 def get_list_queue():
@@ -87,7 +96,7 @@ def get_list_queue():
     json_files = [file for file in os.listdir(IN_PROGRESS) if file.endswith('.json')]
     if not json_files:
         logger.debug(f'Queue directory is empty')
-        return False
+        return []
     first_queue_file = json_files[0]
     with open(os.path.join(IN_PROGRESS, first_queue_file), 'r', encoding='utf-8') as file:
         content = json.load(file)
@@ -100,6 +109,9 @@ def job():
     # TODO
     # Check if file already in DB
     # Add current time to object
+    if DISABLE_QUEUE:
+        logger.info(f'Currently queue is disabled, please set DISABLE_QUEUE=False')
+        return
     if currentActiveDownloads() == 0:
         try:
             json_files = [file for file in os.listdir(QUEUE_DIR) if file.endswith('.json')]
@@ -118,6 +130,8 @@ def job():
 
             download_url = getDownloadURL(queue_current_data['url'], queue_current_data['translation']['id'])
             downloadCacheFile(download_url, queue_current_data)
+            duration = getVideoDuration(queue_current_data)
+            queue_current_data["duration"] = str(duration)
             result = convertVideo(queue_current_data)
             if result:
                 os.remove(os.path.join(CACHE_DIR, f"{queue_current_data['output_filename']}"))
@@ -138,6 +152,7 @@ def job():
         if convert_result:
             result = ', '.join(part for part in convert_result.split() if part.startswith(('time=', 'speed=')))
             logger.info(f"Active number of queue is: {currentActiveDownloads()}. Converting status: {result}")
+
 
 if __name__ == '__main__':
     app.run(debug=os.getenv("DEBUG", False), port=8080, host="0.0.0.0")

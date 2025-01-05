@@ -56,9 +56,7 @@
         <div class="projects mb-4">
           <div class="projects-inner">
 
-
-
-            <div class="download-queue-container">
+            <div v-if="currentQueueStatus.length > 0" class="download-queue-container">
                 <!-- Total Movies Block with Spoiler -->
                 <div class="block">
                     <h2>Queue</h2>
@@ -92,11 +90,58 @@
                 </div>
             </div>
 
+            <div v-else class="info-message">
+                <div class="info-message-text">Queue is empty, please add files for processing to TiVi DB</div>
+            </div>
+
+            <hr></hr>
+            <!-- table -->
+              <table class="projects-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Duration</th>
+                    <th>Translation</th>
+                    <th>Bucket</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="item in metadataList">
+                     <tr>
+                      <td>
+                        <p><span v-html="item.name"></span></p>
+                        <p><span v-html="item.type"></span></p>
+                      </td>
+                      <td>
+                        <p><span v-html="formatDuration(item.duration)"></span></p>
+                      </td>
+                      <td>
+                        <p><span v-html="item.translation.name"></span></p>
+                      </td>
+                      <td>
+                        <p><span v-html="item.bucket"></span></p>
+                      </td>
+                     </tr>
+                  </template>
+              </tbody>
+            </table>
 
 
           </div>
         </div>
       </main>
+
+
+
+
+
+
+
+
+
+
+
+
 {% endif %}
 
 

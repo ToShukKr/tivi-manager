@@ -13,7 +13,8 @@ new Vue({
         selectedTranslation: "",
         translations: [],
         currentQueueStatus: {},
-        currentInProgressStatus: {}
+        currentInProgressStatus: {},
+        metadataList: {}
     },
     computed: {
         pagesArray() {
@@ -34,6 +35,13 @@ new Vue({
         }
     },
     methods: {
+        formatDuration(seconds) {
+          seconds = Math.round(seconds);
+          const hours = String(Math.floor(seconds / 3600)).padStart(2, '0');
+          const minutes = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+          const secs = String(seconds % 60).padStart(2, '0');
+          return `${hours}:${minutes}:${secs}`;
+        },
         notifyError(message) {
           this.$snotify.error(message, { timeout: 5000, showProgressBar: true, closeOnClick: true, pauseOnHover: true });
         },
@@ -58,8 +66,16 @@ new Vue({
         },
         async getQueue() {
           const response = await axios.post(`${this.currentURL}/api/v1/get-list-queue`, { }, { headers: { "Content-Type": "application/json" } });
-          this.currentQueueStatus = response.data.result.queue
-          this.currentInProgressStatus = response.data.result.in_progress[0]
+          result = response.data.result
+          if (result === undefined) {
+              console.log('result is undefined');
+          }
+          this.currentQueueStatus = result.queue
+          this.currentInProgressStatus = result.in_progress[0]
+        },
+        async getMetadata() {
+          const response = await axios.post(`${this.currentURL}/api/v1/get-metadata`, { }, { headers: { "Content-Type": "application/json" } });
+          this.metadataList = response.data.result
         },
         search() {
             this.current_page = 1;
@@ -101,7 +117,10 @@ new Vue({
         }
     },
     beforeMount() {
+      if (window.location.pathname === '/') {
         this.getQueue()
+        this.getMetadata()
+      }
     }
 });
 

@@ -629,3 +629,26 @@ th, td {
     justify-content: center;
     gap: 5px;
 }
+
+/* info box */
+
+.info-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px 20px;
+    margin: 10px 0;
+    border: 1px solid #d1ecf1;
+    border-radius: 8px;
+    background-color: #d1ecf1;
+    color: #0c5460;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+.info-message-text {
+    flex: 1;
+}

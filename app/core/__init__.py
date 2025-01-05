@@ -172,7 +172,15 @@ def getLastLogLine():
             else:
                 return None
 
-
+def getVideoDuration(queue_data):
+    OUTPUT_FILENAME = os.path.join(CACHE_DIR, f"{queue_data['output_filename']}")
+    os.system(f"ls -la {OUTPUT_FILENAME}")
+    try:
+        result = run(f'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {OUTPUT_FILENAME}', stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True).stdout.strip()
+        return result
+    except Exception as e:
+        logger.error(e)
+        return 0
 
 # def remove_fake_header(input_bin, output_video, header="TIVIHEADER"):
 #     header_length = len(header.encode('utf-8'))
