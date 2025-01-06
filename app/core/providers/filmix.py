@@ -78,6 +78,13 @@ class ProviderAPI():
         # [0] - season, [1] - episode
         return id.split('s')[1].split('e')
 
+    def getContentType(self):
+        try:
+            self.getContentURL(self.url)
+            return "series"
+        except:
+            return "movie"
+
     def getSeasons(self, translation=None):
         if not translation:
             try:
@@ -173,9 +180,14 @@ class ProviderAPI():
 # print(filmix.name)
 # print(filmix.getMovie('720p'))
 
-
 # url = "https://filmix.my/film/triller/6123-v-ff-terminator-2-sudnyy-den-1991.html"
 # filmix = ProviderAPI(url)
 #
 # print(filmix.getStramData(url))
 # print(filmix.getMovie())
+
+
+# url = "https://filmix.my/mults/otechestvennye/52316-v-priklyucheniya-vasi-kurolesova-1981.html"
+# url = "https://filmix.my/seria/semejnye/101429-v--voroniny-2021.html"
+# filmix = ProviderAPI(url)
+# print(filmix.getContentType())

@@ -1,6 +1,6 @@
 #!/usr/local/bin/python
 # curl -X POST -H "Content-Type: application/json" -d '{"name": "Секретные материалы", "page": "1"}' http://127.0.0.1:8080/api/v1/search
-# curl -X POST -H "Content-Type: application/json" -d '{"url": "https://filmix.fm/films/komedia/16490-trudnyy-rebenok-2-1991.html"}' http://127.0.0.1:8080/api/v1/get-translate
+# curl -X POST -H "Content-Type: application/json" -d '{"url": "https://filmix.fm/films/komedia/16490-trudnyy-rebenok-2-1991.html"}' http://127.0.0.1:8080/api/v1/get-info
 # curl -X POST -H "Content-Type: application/json" -d '{"id": 12, "name": "Трудный ребенок", "url": "https://filmix.fm/films/komedia/16490-trudnyy-rebenok-2-1991.html", "translation": {"id":0, "name":"LostFilm"}}' http://127.0.0.1:8080/api/v1/add-to-queue
 # curl -X POST -H "Content-Type: application/json" http://127.0.0.1:8080/api/v1/get-list-queue
 # curl -X POST -H "Content-Type: application/json" http://127.0.0.1:8080/api/v1/get-metadata
@@ -33,7 +33,7 @@ def search():
         return jsonify({'error': 'Missing name or page in JSON data'}), 400
     return jsonify(do_search(name, page))
 
-@app.route('/api/v1/get-translate', methods=['POST'])
+@app.route('/api/v1/get-info', methods=['POST'])
 def get_translate():
     json_data = request.get_json()
     url = json_data.get('url')
@@ -41,7 +41,7 @@ def get_translate():
         return jsonify({'error': 'Missing url in JSON data'}), 400
     filmix = ProviderAPI(url)
     translations = [{"id": idx, "name": name} for idx, name in enumerate(filmix.getTranslations())]
-    return translations
+    return {"translations": translations, "type": filmix.getContentType()}
 
 @app.route('/api/v1/add-to-queue', methods=['POST'])
 def add_to_queue():
@@ -102,6 +102,19 @@ def get_list_queue():
         content = json.load(file)
     result["in_progress"].append(content)
     result["in_progress"][0]["translation"] = str(content['translation']['name'])
+
+    download_file = os.path.join(LOGS_DIR, f"{DOWNLOAD_THREAD_PREFIX_NAME}_{content['uid']}.log")
+    convert_file = os.path.join(LOGS_DIR, f"{CONVERT_THREAD_PREFIX_NAME}_{content['uid']}.log")
+    status = ""
+    log = ""
+    if os.path.exists(download_file):
+        status = "Downloading"
+        log = getDownloadInfo()
+    elif os.path.exists(convert_file):
+        status = "Converting"
+        log = getLastLogLine()
+    result["in_progress"][0]["status"] = status
+    result["in_progress"][0]["log"] = log
     return jsonify({"status": True, "message": f"List of qeues and in progress", "result": result}), 200
 
 @scheduler.task('interval', id='runQueueJob', seconds=60)

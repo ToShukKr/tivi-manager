@@ -560,75 +560,97 @@ th, td {
 
 .download-queue-container {
     padding: 20px;
-    margin-left: 20px;
-    margin-right: 20px;
+    margin: 0 auto;
 }
+
 .download-queue-title {
     text-align: center;
-    color: #444;
-    margin-bottom: 20px;
+    color: #ffffff;
+    margin-bottom: 30px;
+    font-size: 1.8rem;
+    font-weight: bold;
 }
+
 .block {
-    margin-bottom: 20px;
-    padding: 20px;
-    background: #f9f9f9;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-.block h2 {
-    margin-bottom: 15px;
-    color: #555;
-}
-.movie-item {
-    padding: 10px;
-    background: #fff;
-    border: 1px solid #ccc;
+    margin-bottom: 30px;
+    padding: 25px;
+    background: #2a2a2a;
+    border: none;
     border-radius: 8px;
-    margin-bottom: 10px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.block h2 {
+    margin-bottom: 20px;
+    color: #e6e6e6;
+    font-size: 1.5rem;
+    font-weight: bold;
+    border-bottom: 2px solid #444;
+    padding-bottom: 5px;
+}
+
+.movie-item {
+    padding: 15px;
+    background: #333;
+    border-radius: 10px;
+    margin-bottom: 15px;
     display: flex;
     flex-direction: column;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
+
 .movie-item span {
-    margin-bottom: 5px;
-    color: #333;
+    margin-bottom: 8px;
+    color: #ffffff;
+    font-size: 1rem;
 }
 
 .movie-item a {
-    color: #007bff;
+    color: #00baff;
     font-weight: bold;
     text-decoration: none;
-    padding: 5px;
+    font-size: 1rem;
 }
 
 .movie-item a:hover {
-    color: #0056b3;
-    border-bottom: 1px solid #0056b3;
+    color: #008cce;
+    text-decoration: underline;
 }
 
 .status {
     font-weight: bold;
-    color: #007bff;
+    color: #ffb400;
+    font-size: 1rem;
 }
+
 .spoiler {
     overflow: hidden;
-    max-height: 80px;
-    transition: max-height 0.3s ease;
+    max-height: 190px;
+    transition: max-height 0.4s ease;
 }
+
 .spoiler.open {
-    max-height: none;
+    max-height: 1000px;
 }
+
 .spoiler-toggle {
     cursor: pointer;
     text-align: center;
-    color: #007bff;
+    color: #00baff;
     font-weight: bold;
-    margin-top: 10px;
+    margin-top: 15px;
+    font-size: 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
+    gap: 8px;
+    transition: color 0.3s ease;
 }
+
+.spoiler-toggle:hover {
+    color: #008cce;
+}
+
 
 /* info box */
 
@@ -642,7 +664,6 @@ th, td {
     border-radius: 8px;
     background-color: #d1ecf1;
     color: #0c5460;
-    font-family: Arial, sans-serif;
     font-size: 16px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     text-align: center;
@@ -651,4 +672,27 @@ th, td {
 }
 .info-message-text {
     flex: 1;
+}
+
+/* Loader */
+.loader-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 15vh;
+}
+
+.loader {
+  width: 50px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 8px solid;
+  border-color: #000 #0000;
+  animation: l1 1s infinite;
+}
+
+@keyframes l1 {
+  to {
+    transform: rotate(.5turn);
+  }
 }

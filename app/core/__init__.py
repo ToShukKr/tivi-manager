@@ -144,23 +144,20 @@ def updateMetadataFile(queue_data):
         logger.error(e)
 
 def getDownloadInfo():
-    DL_RESULT = {}
+    RESULT = []
     log_files = glob.glob(os.path.join(LOGS_DIR, f'{DOWNLOAD_THREAD_PREFIX_NAME}_*.log'))
     for log in log_files:
         with open(log) as file_in:
-            RESULT = []
             for line in file_in:
                 try:
                     RESULT.append(line[line.index('[#')+len('[#'):line.index(']')])
                 except:
                     pass
-        try:
-            download_file_name = log[log.index(f'{DOWNLOAD_THREAD_PREFIX_NAME}=')+len(f'{DOWNLOAD_THREAD_PREFIX_NAME}='):log.index('.log')]
-            download_result = RESULT[-1].partition(' ')[2]
-            DL_RESULT[download_file_name] = download_result
-        except:
-            pass
-    return DL_RESULT
+    try:
+        final_result = re.sub(r"^\S+\s|CN:\S+\s|DL:\S+\s", "", RESULT[-1])
+    except:
+        final_result = "Failed to get download result"
+    return final_result
 
 def getLastLogLine():
     log_files = glob.glob(os.path.join(LOGS_DIR, f'{CONVERT_THREAD_PREFIX_NAME}_*.log'))

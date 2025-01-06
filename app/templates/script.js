@@ -12,6 +12,7 @@ new Vue({
         modalLink: "",
         selectedTranslation: "",
         translations: [],
+        selectedType: "",
         currentQueueStatus: {},
         currentInProgressStatus: {},
         metadataList: {}
@@ -61,8 +62,10 @@ new Vue({
         async fetchTranslations(url) {
           this.selectedTranslation = ""
           this.translations = []
-          const response = await axios.post(`${this.currentURL}/api/v1/get-translate`, { "url": url }, { headers: { "Content-Type": "application/json" } });
-          this.translations = response.data
+          const response = await axios.post(`${this.currentURL}/api/v1/get-info`, { "url": url }, { headers: { "Content-Type": "application/json" } });
+          console.log(response.data)
+          this.selectedType = response.data.type
+          this.translations = response.data.translations
         },
         async getQueue() {
           const response = await axios.post(`${this.currentURL}/api/v1/get-list-queue`, { }, { headers: { "Content-Type": "application/json" } });

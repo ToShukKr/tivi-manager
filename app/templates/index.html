@@ -59,7 +59,7 @@
             <div v-if="currentQueueStatus.length > 0" class="download-queue-container">
                 <!-- Total Movies Block with Spoiler -->
                 <div class="block">
-                    <h2>Queue</h2>
+                    <h2>Queue (<span v-html="currentQueueStatus.length"></span>):</h2>
                     <div class="spoiler">
                       <template v-for="item in currentQueueStatus">
                         <div class="movie-item">
@@ -78,14 +78,15 @@
                 </div>
 
                 <div class="block">
-                    <h2>In Progress</h2>
+                    <h2>Active:</h2>
                     <div class="movie-item">
                         <span><strong>Movie:</strong> <a :href="currentInProgressStatus.url"><span v-html="currentInProgressStatus.name"></span></a></span>
                         <span><strong>Added:</strong> <span v-html="currentInProgressStatus.add_time"></span></span>
                         <span><strong>Language:</strong> <span v-html="currentInProgressStatus.translation"></span></span>
                         <span><strong>Type:</strong> <span v-html="currentInProgressStatus.type"></span></span>
                         <span><strong>ID:</strong> <span v-html="currentInProgressStatus.uid"></span></span>
-                        <span><strong>Status:</strong> <span class="status">Downloading</span></span>
+                        <span><strong>Status:</strong>  <span v-html="currentInProgressStatus.status"></span></span>
+                        <span><strong>Log:</strong>  <span v-html="currentInProgressStatus.log"></span></span>
                     </div>
                 </div>
             </div>
@@ -94,8 +95,10 @@
                 <div class="info-message-text">Queue is empty, please add files for processing to TiVi DB</div>
             </div>
 
-            <hr></hr>
             <!-- table -->
+              <header class="projects-header">
+                <div class="title">Database (<span v-html="metadataList.length"></span>):</div>
+              </header>
               <table class="projects-table">
                 <thead>
                   <tr>
@@ -211,9 +214,12 @@
 
   <div v-if="showModal" class="modal">
       <div class="modal-content">
-          <button class="modal-close" @click="closeModal">&times;</button>
+        <button class="modal-close" @click="closeModal">&times;</button>
+        <div v-if="selectedType.length < 1" class="loader-container"> <div class="loader"></div> </div>
           <h2><a :href="modalLink" target="_blank"><span v-html="modalName"></span></a></h2>
           <div class="id-modal-label"><p>ID: <span v-html="selected_filmix_id"></span></p></div>
+          <div class="id-modal-label"><p>Type: <span v-html="selectedType"></span></p></div>
+          </br>
           <select v-model="selectedTranslation">
               <option value="" disabled>Select Translation</option>
               <template v-for="translation in translations" :key="translation.id">
@@ -221,7 +227,7 @@
               </template>
           </select>
           <button @click="addToDb">ADD TO TIVI DATABASE</button>
-      </div>
+        </div>
   </div>
 
 
