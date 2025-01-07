@@ -391,7 +391,7 @@ h2 a:hover {
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     position: relative;
-    width: 400px;
+    width: 50%;
     display: flex;
     flex-direction: column;
 }
@@ -695,4 +695,74 @@ th, td {
   to {
     transform: rotate(.5turn);
   }
+}
+
+
+/* series table */
+.series-table-container {
+    max-width: 900px;
+    background: linear-gradient(135deg, #fdfbfb, #ebedee);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.series-table-title {
+    background: #0066cc;
+    color: #fff;
+    text-align: center;
+    padding: 15px;
+    font-size: 26px;
+    font-weight: bold;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    text-shadow: 1px 1px 2px #000;
+}
+
+.series-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.series-table th, .series-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    color: #000;
+}
+
+.series-table th {
+    background: #007bff;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 14px;
+}
+
+.series-table tr:nth-child(even) {
+    background-color: #f1f1f1;
+}
+
+.series-table tr:hover {
+    background-color: #d9eaff;
+}
+
+.series-table-seasons {
+    font-weight: bold;
+    color: #005bb5;
+}
+
+ul {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+}
+
+ul li {
+    font-size: 14px;
+    color: #000;
 }

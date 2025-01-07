@@ -216,10 +216,47 @@
       <div class="modal-content">
         <button class="modal-close" @click="closeModal">&times;</button>
         <div v-if="selectedType.length < 1" class="loader-container"> <div class="loader"></div> </div>
-          <h2><a :href="modalLink" target="_blank"><span v-html="modalName"></span></a></h2>
-          <div class="id-modal-label"><p>ID: <span v-html="selected_filmix_id"></span></p></div>
-          <div class="id-modal-label"><p>Type: <span v-html="selectedType"></span></p></div>
-          </br>
+
+        <template v-if="selectedType.length > 0">
+          <br></br>
+          <div class="series-table-container">
+              <table class="series-table">
+                  <thead>
+                      <tr>
+                          <th>Name</th>
+                          <th>ID</th>
+                          <th>Type</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      <tr>
+                          <td><a :href="modalLink" target="_blank"><span v-html="modalName"></span></a></td>
+                          <td><span v-html="selected_filmix_id"></span></td>
+                          <td><span v-html="selectedType"></span></td>
+                      </tr>
+                  </tbody>
+              </table>
+          </div>
+
+          <hr></hr>
+          <div class="series-table-container">
+              <table class="series-table">
+                  <thead>
+                      <tr>
+                          <th>Season</th>
+                          <th>Series</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(summary, index) in seriesdata" :key="index">
+                      <td class="series-table-seasons"><span v-html="summary.split(':')[0]"></span></td>
+                      <td><span v-html="summary.split(': ')[1]"></span></td>
+                    </tr>
+                  </tbody>
+              </table>
+          </div>
+
+
           <select v-model="selectedTranslation">
               <option value="" disabled>Select Translation</option>
               <template v-for="translation in translations" :key="translation.id">
@@ -227,7 +264,9 @@
               </template>
           </select>
           <button @click="addToDb">ADD TO TIVI DATABASE</button>
-        </div>
+        </template>
+
+      </div>
   </div>
 
 

@@ -35,13 +35,17 @@ def search():
 
 @app.route('/api/v1/get-info', methods=['POST'])
 def get_translate():
+    data = {}
     json_data = request.get_json()
     url = json_data.get('url')
     if not url:
         return jsonify({'error': 'Missing url in JSON data'}), 400
     filmix = ProviderAPI(url)
+    type = filmix.getContentType()
     translations = [{"id": idx, "name": name} for idx, name in enumerate(filmix.getTranslations())]
-    return {"translations": translations, "type": filmix.getContentType()}
+    if type == "series":
+        data = filmix.getSeasons()
+    return {"translations": translations, "type": type, "data": data}
 
 @app.route('/api/v1/add-to-queue', methods=['POST'])
 def add_to_queue():

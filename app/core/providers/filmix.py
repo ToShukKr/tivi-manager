@@ -96,11 +96,8 @@ class ProviderAPI():
             decoded_content_json = self.getContentURL(self.url)
         except:
             content_template = {
-            translation: {
-                "translator_id": 0,
                 "seasons": {1: "Season"},
                 "episodes": {1: "Episode"}
-                }
             }
             return content_template
 
@@ -123,11 +120,8 @@ class ProviderAPI():
             episode.update(episodes_json)
 
         content_template = {
-        translation: {
-            "translator_id": 0,
             "seasons": season,
             "episodes": episode
-            }
         }
         return content_template
 
@@ -190,4 +184,4 @@ class ProviderAPI():
 # url = "https://filmix.my/mults/otechestvennye/52316-v-priklyucheniya-vasi-kurolesova-1981.html"
 # url = "https://filmix.my/seria/semejnye/101429-v--voroniny-2021.html"
 # filmix = ProviderAPI(url)
-# print(filmix.getContentType())
+# print(filmix.getSeasons())

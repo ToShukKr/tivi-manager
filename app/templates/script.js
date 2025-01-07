@@ -15,7 +15,8 @@ new Vue({
         selectedType: "",
         currentQueueStatus: {},
         currentInProgressStatus: {},
-        metadataList: {}
+        metadataList: {},
+        seriesdata: {}
     },
     computed: {
         pagesArray() {
@@ -59,13 +60,18 @@ new Vue({
             this.pages = parseInt(data.pages);
             this.content = data.content;
         },
-        async fetchTranslations(url) {
+        async fetchInfo(url) {
           this.selectedTranslation = ""
           this.translations = []
           const response = await axios.post(`${this.currentURL}/api/v1/get-info`, { "url": url }, { headers: { "Content-Type": "application/json" } });
           console.log(response.data)
           this.selectedType = response.data.type
           this.translations = response.data.translations
+          this.seriesdata = Object.keys(response.data.data.seasons).map(seasonNumber => {
+              const episodesCount = Object.keys(response.data.data.episodes[seasonNumber] || {}).length;
+              return `${seasonNumber} season: "${episodesCount} ${episodesCount === 1 ? 'Episode' : 'Episodes'}"`;
+          });
+          console.log(this.seriesdata)
         },
         async getQueue() {
           const response = await axios.post(`${this.currentURL}/api/v1/get-list-queue`, { }, { headers: { "Content-Type": "application/json" } });
@@ -91,7 +97,7 @@ new Vue({
             }
         },
         openModal(name, url) {
-            this.fetchTranslations(url);
+            this.fetchInfo(url);
             const regex = /\/([^/]+?)-/;
             const match = url.match(regex);
 
