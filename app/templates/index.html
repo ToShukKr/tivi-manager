@@ -239,23 +239,22 @@
           </div>
 
           <hr></hr>
-          <div class="series-table-container">
+          <div v-if="selectedType === 'series'" class="series-table-container">
               <table class="series-table">
                   <thead>
                       <tr>
-                          <th>Season</th>
-                          <th>Series</th>
+                          <th>Total seasons</th>
+                          <th>Total seriess</th>
                       </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(summary, index) in seriesdata" :key="index">
-                      <td class="series-table-seasons"><span v-html="summary.split(':')[0]"></span></td>
-                      <td><span v-html="summary.split(': ')[1]"></span></td>
+                    <tr>
+                      <td class="series-table-seasons"><span v-html="seriesResult.seasons"></span></td>
+                      <td class="series-table-seasons"><span v-html="seriesResult.episodes"></span></td>
                     </tr>
                   </tbody>
               </table>
           </div>
-
 
           <select v-model="selectedTranslation">
               <option value="" disabled>Select Translation</option>
@@ -268,7 +267,6 @@
 
       </div>
   </div>
-
 
 </div>
 <script src='https://unpkg.com/vue-snotify@3.2.1/vue-snotify.min.js'></script>

@@ -16,7 +16,7 @@ new Vue({
         currentQueueStatus: {},
         currentInProgressStatus: {},
         metadataList: {},
-        seriesdata: {}
+        seriesResult: {}
     },
     computed: {
         pagesArray() {
@@ -62,16 +62,23 @@ new Vue({
         },
         async fetchInfo(url) {
           this.selectedTranslation = ""
+          this.selectedType = ""
           this.translations = []
           const response = await axios.post(`${this.currentURL}/api/v1/get-info`, { "url": url }, { headers: { "Content-Type": "application/json" } });
-          console.log(response.data)
           this.selectedType = response.data.type
           this.translations = response.data.translations
-          this.seriesdata = Object.keys(response.data.data.seasons).map(seasonNumber => {
-              const episodesCount = Object.keys(response.data.data.episodes[seasonNumber] || {}).length;
-              return `${seasonNumber} season: "${episodesCount} ${episodesCount === 1 ? 'Episode' : 'Episodes'}"`;
-          });
-          console.log(this.seriesdata)
+
+
+          try {
+            const episodes = response.data.data.episodes;
+            const seasons = Object.keys(episodes).length;
+            const totalEpisodes = Object.values(episodes).reduce(
+              (count, seasonEpisodes) => count + Object.keys(seasonEpisodes).length,
+              0
+            );
+            this.seriesResult = { seasons, episodes: totalEpisodes };
+          } catch (e) {}
+
         },
         async getQueue() {
           const response = await axios.post(`${this.currentURL}/api/v1/get-list-queue`, { }, { headers: { "Content-Type": "application/json" } });
@@ -116,6 +123,7 @@ new Vue({
             this.showModal = false;
         },
         async addToDb() {
+          this.notifyInfo("Please wait")
           const response = await axios.post(`${this.currentURL}/api/v1/add-to-queue`, { "id": this.selected_filmix_id, "url": this.modalLink, "name": this.modalName, "translation": this.selectedTranslation }, { headers: { "Content-Type": "application/json" } });
           if (response.data.status){
             this.notifySucess(response.data.message)

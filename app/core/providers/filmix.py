@@ -59,17 +59,10 @@ class ProviderAPI():
             translation_list.append(i)
         return translation_list
 
-    def getContentURL(self, URL, translation=None):
+    def getContentURL(self, URL, translation_id=0):
         stream_data = self.getStramData(URL)['message']['translations']['video']
-
-        if not translation:
-            try:
-                translation = self.getTranslations()[0]
-            except:
-                translation = 'Original'
-
-        translation_url = stream_data[translation]
-
+        translation_key = list(stream_data.keys())[translation_id] if translation_id in range(len(stream_data)) else list(stream_data.keys())[0]
+        translation_url = stream_data.get(translation_key, list(stream_data.values())[0])
         content_url = self.decodeBase64(translation_url)
         encoded_video_content = requests.get(content_url.decode("UTF-8"), timeout=REQUEST_TIMEOUT)
         return self.decodeBase64(encoded_video_content.content.decode("UTF-8")).decode("UTF-8")
@@ -139,12 +132,12 @@ class ProviderAPI():
             if i.startswith(get_quality):
                 return i.replace(get_quality,'')
 
-    def getStream(self, season, episode, quality, translation=None):
+    def getStream(self, season, episode, quality="720p", translation_id=0):
         if not quality in ["360p", "480p", "720p"]:
             available_res = '"360p", "480p", "720p"'
             raise ValueError(f'Resolution "{quality}" is not defined\nUse one of these: {available_res}')
 
-        video_content = eval(self.getContentURL(self.url))
+        video_content = eval(self.getContentURL(self.url, translation_id))
         for i in video_content:
             folder = i['folder']
             for folder in i['folder']:
@@ -180,8 +173,11 @@ class ProviderAPI():
 # print(filmix.getStramData(url))
 # print(filmix.getMovie())
 
-
 # url = "https://filmix.my/mults/otechestvennye/52316-v-priklyucheniya-vasi-kurolesova-1981.html"
 # url = "https://filmix.my/seria/semejnye/101429-v--voroniny-2021.html"
 # filmix = ProviderAPI(url)
 # print(filmix.getSeasons())
+
+# url = "https://filmix.my/seria/drama/8349-v-sekretnye-materialy-big-2002.html"
+# filmix = ProviderAPI(url)
+# print(filmix.getStream('8', '12', '720p', 1))

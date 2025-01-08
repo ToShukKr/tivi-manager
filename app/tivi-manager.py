@@ -57,6 +57,39 @@ def add_to_queue():
     name = json_data.get('name')
     translation = json_data.get('translation')
     uid = getRandomName()
+    filmix = ProviderAPI(url)
+    type = filmix.getContentType()
+    if type == "series":
+        data = filmix.getSeasons()['episodes']
+        all_series = []
+        for i in data:
+            for e in data[i]:
+                all_series.append(f"{i}-{e}")
+        for item in all_series:
+            season = item.split("-")[0]
+            episode = item.split("-")[-1]
+            video_file_name = f"{id}_{season}_{episode}_{uid}"
+            queue_template = {
+                "uid": uid,
+                "kp_id": f"{id}{uid}",
+                "fx_id": id,
+                "output_filename": f"{video_file_name}.mp4",
+                "url": url,
+                "name": name,
+                "translation": translation,
+                "type": type,
+                "bucket": ARCHIVE_BUCKET_NAME,
+                "add_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "duration": "",
+                "data": {"season": season, "episode": episode}
+                }
+            queue_file = os.path.join(QUEUE_DIR, f"{video_file_name}.json")
+            with open(queue_file, 'w') as file:
+                json.dump(queue_template, file, indent=4, ensure_ascii=False)
+            if os.path.exists(queue_file):
+                logger.info(f'Added to Queue : "{name} (Season:{season}, Episode:{episode}) ({translation['name']})"')
+        return jsonify({"status": True, "message": f"Successfully added series '{name} ({translation['name']})' to queue", "result": []}), 200
+
     queue_template = {
         "uid": uid,
         "kp_id": f"{id}{uid}",
@@ -65,7 +98,7 @@ def add_to_queue():
         "url": url,
         "name": name,
         "translation": translation,
-        "type": "movie",
+        "type": type,
         "bucket": ARCHIVE_BUCKET_NAME,
         "add_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "duration": "",
@@ -77,7 +110,7 @@ def add_to_queue():
     if os.path.exists(queue_file):
         logger.info(f'Added to Queue : "{name} ({translation['name']})"')
         return jsonify({"status": True, "message": f"Successfully added '{name} ({translation['name']})' to queue", "result": []}), 200
-    return jsonify({"status": False, "message": f"Failed to add '{name} ({translation['name']})' to queue", "result": []}), 200
+    return jsonify({"status": False, "message": f"Failed to add movie '{name} ({translation['name']})' to queue", "result": []}), 200
 
 @app.route('/api/v1/get-metadata', methods=['POST'])
 def get_metadata():
@@ -132,11 +165,9 @@ def job():
     if currentActiveDownloads() == 0:
         try:
             json_files = [file for file in os.listdir(QUEUE_DIR) if file.endswith('.json')]
-
             if not json_files:
                 logger.debug(f'Queue directory is empty')
                 return False
-
             first_queue_file = json_files[0]
             queue_path = os.path.join(QUEUE_DIR, first_queue_file)
             in_progress_path = os.path.join(IN_PROGRESS, first_queue_file)
@@ -144,8 +175,7 @@ def job():
 
             with open(in_progress_path, 'r', encoding='utf-8') as file:
                 queue_current_data = json.load(file)
-
-            download_url = getDownloadURL(queue_current_data['url'], queue_current_data['translation']['id'])
+            download_url = getDownloadURL(queue_current_data)
             downloadCacheFile(download_url, queue_current_data)
             duration = getVideoDuration(queue_current_data)
             queue_current_data["duration"] = str(duration)
@@ -153,7 +183,14 @@ def job():
             if result:
                 os.remove(os.path.join(CACHE_DIR, f"{queue_current_data['output_filename']}"))
             upload_bin_file = videoToBin(queue_current_data)
-            uploadToBucket(upload_bin_file, verbose=True)
+            if queue_current_data['type'] == "series":
+                series_dir = queue_current_data['fx_id']
+                print(series_dir)
+                uploadToBucket({f"{series_dir}/{queue_current_data['output_filename'].replace(VIDEO_FILE_EXTENSION, BIN_FILE_EXTENSION)}": upload_bin_file}, verbose=True)
+            else:
+                uploadToBucket(upload_bin_file, verbose=True)
+            if os.path.exists(upload_bin_file):
+                os.remove(upload_bin_file)
             updateMetadataFile(queue_current_data)
             if os.path.exists(queue_path):
                 os.remove(queue_path)

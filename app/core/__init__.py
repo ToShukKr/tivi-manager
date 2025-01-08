@@ -47,9 +47,16 @@ def currentActiveDownloads():
     return len([file for file in os.listdir(IN_PROGRESS) if file.endswith('.json')])
 
 @retry
-def getDownloadURL(url, translation_id=0):
+def getDownloadURL(queue_current_data):
+    url = queue_current_data['url']
+    translation_id = queue_current_data['translation']['id']
+    type = queue_current_data['type']
     logger.info(f'Getting Download URL for : {url}')
-    return ProviderAPI(url).getMovie(DEFAULT_QUALITY, translation_id)
+    if type == "movie":
+        return ProviderAPI(url).getMovie(DEFAULT_QUALITY, translation_id)
+    season = queue_current_data['data']['season']
+    episode = queue_current_data['data']['episode']
+    return ProviderAPI(url).getStream(season, episode, DEFAULT_QUALITY, translation_id)
 
 @retry
 def downloadCacheFile(link, queue_data):
@@ -156,7 +163,7 @@ def getDownloadInfo():
     try:
         final_result = re.sub(r"^\S+\s|CN:\S+\s|DL:\S+\s", "", RESULT[-1])
     except:
-        final_result = "Failed to get download result"
+        final_result = []
     return final_result
 
 def getLastLogLine():
@@ -171,7 +178,6 @@ def getLastLogLine():
 
 def getVideoDuration(queue_data):
     OUTPUT_FILENAME = os.path.join(CACHE_DIR, f"{queue_data['output_filename']}")
-    os.system(f"ls -la {OUTPUT_FILENAME}")
     try:
         result = run(f'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {OUTPUT_FILENAME}', stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True).stdout.strip()
         return result
