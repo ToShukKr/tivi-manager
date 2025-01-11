@@ -27,7 +27,7 @@ STATIC_DIR = os.path.join('/', 'app','templates')
 DATA_DIR = os.path.join("/", "data")
 QUEUE_DIR = os.path.join(DATA_DIR, "queue")
 IN_PROGRESS = os.path.join(DATA_DIR, "in_progress")
-CACHE_DIR = os.path.join("/", "cache")
+# CACHE_DIR = os.path.join("/", "cache")
 UPLOAD_CACHE_DIR = os.path.join(DATA_DIR, "cache")
 LOGS_DIR = os.path.join(DATA_DIR, 'logs')
 LOGS_APP_FILE = os.path.join(LOGS_DIR, 'tivi-manager.log')
@@ -45,8 +45,9 @@ ARCHIVE_BUCKET_NAME = os.getenv("ARCHIVE_BUCKET_NAME")
 ARCHIVE_METADATA_BUCKET_NAME = os.getenv("ARCHIVE_METADATA_BUCKET_NAME")
 ARCHIVE_ACCESS_KEY_ID = os.getenv("ARCHIVE_ACCESS_KEY_ID")
 ARCHIVE_SECRET_ACCESS_KEY = os.getenv("ARCHIVE_SECRET_ACCESS_KEY")
+TIVI_HEADER_ENCRYPT_CODE = "TIVIHEADEREIZAI8EED0MIEMIESEECHOH5OGHOHQUA"
 
-for dir in [QUEUE_DIR, IN_PROGRESS, LOGS_DIR, CACHE_DIR, UPLOAD_CACHE_DIR]:
+for dir in [QUEUE_DIR, IN_PROGRESS, LOGS_DIR, UPLOAD_CACHE_DIR]:
     if not os.path.exists(dir):
         os.mkdir(dir)
 

@@ -141,15 +141,14 @@ def get_list_queue():
     result["in_progress"][0]["translation"] = str(content['translation']['name'])
 
     download_file = os.path.join(LOGS_DIR, f"{DOWNLOAD_THREAD_PREFIX_NAME}_{content['uid']}.log")
-    convert_file = os.path.join(LOGS_DIR, f"{CONVERT_THREAD_PREFIX_NAME}_{content['uid']}.log")
     status = ""
     log = ""
     if os.path.exists(download_file):
         status = "Downloading"
         log = getDownloadInfo()
-    elif os.path.exists(convert_file):
-        status = "Converting"
-        log = getLastLogLine()
+    elif os.path.exists(UPLOAD_MARKER):
+        status = "Uploading"
+        log = "Uploading"
     result["in_progress"][0]["status"] = status
     result["in_progress"][0]["log"] = log
     return jsonify({"status": True, "message": f"List of qeues and in progress", "result": result}), 200
@@ -179,9 +178,6 @@ def job():
             downloadCacheFile(download_url, queue_current_data)
             duration = getVideoDuration(queue_current_data)
             queue_current_data["duration"] = str(duration)
-            result = convertVideo(queue_current_data)
-            if result:
-                os.remove(os.path.join(CACHE_DIR, f"{queue_current_data['output_filename']}"))
             upload_bin_file = videoToBin(queue_current_data)
             if queue_current_data['type'] == "series":
                 series_dir = queue_current_data['fx_id']
@@ -200,12 +196,8 @@ def job():
             logger.error(e)
     else:
         download_result = getDownloadInfo()
-        convert_result = getLastLogLine()
         if download_result:
             logger.info(f"Active number of queue is: {currentActiveDownloads()}. Downloading status: {download_result}")
-        if convert_result:
-            result = ', '.join(part for part in convert_result.split() if part.startswith(('time=', 'speed=')))
-            logger.info(f"Active number of queue is: {currentActiveDownloads()}. Converting status: {result}")
 
 
 if __name__ == '__main__':

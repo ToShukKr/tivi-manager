@@ -62,24 +62,13 @@ def getDownloadURL(queue_current_data):
 def downloadCacheFile(link, queue_data):
     logger.info(f'Downloading: "{queue_data['name']}"')
     logfile = os.path.join(LOGS_DIR, f"{DOWNLOAD_THREAD_PREFIX_NAME}_{queue_data['uid']}.log")
-    os.system(f'aria2c -k 1M -s {DOWNLOAD_THREADS} -x {DOWNLOAD_THREADS} -o "..{os.path.join(CACHE_DIR, f"{queue_data['output_filename']}")}" "{link}" > {logfile} 2>&1')
+    os.system(f'aria2c -k 1M -s {DOWNLOAD_THREADS} -x {DOWNLOAD_THREADS} -o "..{os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename']}")}" "{link}" > {logfile} 2>&1')
     if os.path.exists(logfile):
         os.remove(logfile)
     logger.info(f'Successfully downloaded: "{queue_data['name']}"')
     return True
 
-def convertVideo(queue_data):
-    logger.info(f'Converting: "{queue_data['name']}"')
-    DOWNLOAD_FILENAME = os.path.join(CACHE_DIR, f"{queue_data['output_filename']}")
-    OUTPUT_FILENAME = os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename']}")
-    logfile = os.path.join(LOGS_DIR, f"{CONVERT_THREAD_PREFIX_NAME}_{queue_data['uid']}.log")
-    os.system(f'ffmpeg -y -i {DOWNLOAD_FILENAME} -vf "scale=1920:1080,setsar=1" -b:v 4M -b:a 192k -ac 2 -ar 44100 -c:a aac -c:v libx264 -preset faster -crf 22 {OUTPUT_FILENAME} > {logfile} 2>&1')
-    if os.path.exists(logfile):
-        os.remove(logfile)
-    logger.info(f'Successfully converting: "{queue_data['name']}"')
-    return True
-
-def videoToBin(queue_data, header="TIVIHEADER"):
+def videoToBin(queue_data, header=TIVI_HEADER_ENCRYPT_CODE):
     input_video = os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename']}")
     output_bin = os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename'].replace(VIDEO_FILE_EXTENSION, BIN_FILE_EXTENSION)}")
     try:
@@ -166,18 +155,8 @@ def getDownloadInfo():
         final_result = []
     return final_result
 
-def getLastLogLine():
-    log_files = glob.glob(os.path.join(LOGS_DIR, f'{CONVERT_THREAD_PREFIX_NAME}_*.log'))
-    for log in log_files:
-        with open(log, 'r') as file:
-            lines = file.readlines()
-            if lines:
-                return lines[-1].strip()
-            else:
-                return None
-
 def getVideoDuration(queue_data):
-    OUTPUT_FILENAME = os.path.join(CACHE_DIR, f"{queue_data['output_filename']}")
+    OUTPUT_FILENAME = os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename']}")
     try:
         result = run(f'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {OUTPUT_FILENAME}', stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True).stdout.strip()
         return result
@@ -185,7 +164,19 @@ def getVideoDuration(queue_data):
         logger.error(e)
         return 0
 
-# def remove_fake_header(input_bin, output_video, header="TIVIHEADER"):
+# def convertVideo(queue_data):
+#     # Currently is disabled
+#     logger.info(f'Converting: "{queue_data['name']}"')
+#     DOWNLOAD_FILENAME = os.path.join(CACHE_DIR, f"{queue_data['output_filename']}")
+#     OUTPUT_FILENAME = os.path.join(UPLOAD_CACHE_DIR, f"{queue_data['output_filename']}")
+#     logfile = os.path.join(LOGS_DIR, f"{CONVERT_THREAD_PREFIX_NAME}_{queue_data['uid']}.log")
+#     os.system(f'ffmpeg -y -i {DOWNLOAD_FILENAME} -vf "scale=1920:1080,setsar=1" -b:v 4M -b:a 192k -ac 2 -ar 44100 -c:a aac -c:v libx264 -preset faster -crf 22 {OUTPUT_FILENAME} > {logfile} 2>&1')
+#     if os.path.exists(logfile):
+#         os.remove(logfile)
+#     logger.info(f'Successfully converting: "{queue_data['name']}"')
+#     return True
+
+# def remove_fake_header(input_bin, output_video, header=TIVI_HEADER_ENCRYPT_CODE):
 #     header_length = len(header.encode('utf-8'))
 #     with open(input_bin, 'rb') as in_file:
 #         in_file.seek(header_length)
