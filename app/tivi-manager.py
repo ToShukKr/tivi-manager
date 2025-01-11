@@ -148,7 +148,7 @@ def get_list_queue():
         log = getDownloadInfo()
     elif os.path.exists(UPLOAD_MARKER):
         status = "Uploading"
-        log = "Uploading"
+        log = ""
     result["in_progress"][0]["status"] = status
     result["in_progress"][0]["log"] = log
     return jsonify({"status": True, "message": f"List of qeues and in progress", "result": result}), 200
