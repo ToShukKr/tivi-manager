@@ -35,22 +35,28 @@ class Archive:
             raise FileNotFoundError(f"File not found: {file_path}")
         
         file_size = file_path.stat().st_size
-        print(f"⏳ Uploading {file_path.name} ({file_size / 1024 / 1024:.2f} MB) to {bucket}...")
+        attempt = 1
         
-        result = ia.upload(
-            bucket,
-            files=[str(file_path)],
-            access_key=os.environ.get("ARCHIVE_ACCESS_KEY"),
-            secret_key=os.environ.get("ARCHIVE_SECRET_KEY"),
-            verbose=True
-        )
-        
-        success = any(r.status_code == 200 for r in result)
-        if success:
-            print(f"✓ {file_path.name} uploaded successfully to {bucket}")
-        else:
-            print(f"✗ Upload failed")
-        return success
+        while True:
+            print(f"⏳ Uploading {file_path.name} ({file_size / 1024 / 1024:.2f} MB) to {bucket}... (attempt {attempt})")
+            
+            try:
+                result = ia.upload(
+                    bucket,
+                    files=[str(file_path)],
+                    access_key=os.environ.get("ARCHIVE_ACCESS_KEY"),
+                    secret_key=os.environ.get("ARCHIVE_SECRET_KEY"),
+                    verbose=True
+                )
+                
+                success = any(r.status_code == 200 for r in result)
+                if success:
+                    print(f"✓ {file_path.name} uploaded successfully to {bucket}")
+                    return True
+            except Exception as e:
+                print(f"✗ Upload error: {e}")
+            
+            attempt += 1
 
     def list_bucket(self, bucket):
         item = ia.get_item(bucket)

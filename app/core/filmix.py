@@ -7,13 +7,16 @@ from time import sleep
 REQUEST_TIMEOUT = 10
 
 class ProviderAPI():
-    __version__ = 1.0
+    __version__ = 1.1
 
     def __init__(self, url):
         self.provider_name = "filmix"
-        self.filmix_url = 'https://filmix.my'
         self.url = url
         self.name = self.getName()
+        self.id = self.getID()
+
+    def getProviderURL(self):
+        return self.url.split('/')[0:3].__str__().replace("'", "").replace("[", "").replace("]", "").replace(", ", "/")
 
     def getName(self):
         link_name = self.url.split('/')[-1].replace('.html','')
@@ -21,6 +24,9 @@ class ProviderAPI():
 
     def getIDFromURL(self, url):
         return url.rsplit('/', 1)[-1].split('-')[0]
+
+    def getID(self):
+        return self.url.split('-')[0].split('/')[-1]
 
     def decodeBase64(self, encoded_url):
         tokens = (":<:bzl3UHQwaWk0MkdXZVM3TDdB", ":<:SURhQnQwOEM5V2Y3bFlyMGVI", ":<:bE5qSTlWNVUxZ01uc3h0NFFy", ":<:Mm93S0RVb0d6c3VMTkV5aE54", ":<:MTluMWlLQnI4OXVic2tTNXpU")
@@ -41,11 +47,10 @@ class ProviderAPI():
         except:
             session_cookie = 'FILMIXNET=ms604jm828es9j6t83qs3ptmf9'
 
-        # Добавляем дополнительные куки
         additional_cookies = "dle_password=483f1fce06d055e8dae9b585551e9603; dle_user_id=1639040"
         combined_cookies = "{}; {}".format(session_cookie, additional_cookies)
 
-        url = "{}{}".format(self.filmix_url, "/api/movies/player-data?t=1651831246576")
+        url = "{}{}".format(self.getProviderURL(), "/api/movies/player-data?t=1651831246576")
         payload = {'post_id': id, 'showfull': 'true'}
         files = []
         headers = {'x-requested-with': 'XMLHttpRequest', 'Cookie': combined_cookies}
@@ -96,7 +101,6 @@ class ProviderAPI():
             return content_template
 
         content_template = {}
-        seasons_template = {}
         season = {}
         episode = {}
         for i in eval(decoded_content_json):
@@ -157,11 +161,11 @@ class ProviderAPI():
         return self.parseURLs(content_url, quality)
 
 
-url = "https://filmix.my/multser/komedia/9184-v-l-simpsony-1989.html"
-filmix = ProviderAPI(url)
-print(filmix.name)
-print(filmix.getSeasons())
-print(filmix.getStream('1', '8', '720p'))
+# url = "https://filmix.my/multser/komedia/9184-v-l-simpsony-1989.html"
+# filmix = ProviderAPI(url)
+# print(filmix.name)
+# print(filmix.getSeasons())
+# print(filmix.getStream('1', '8', '720p'))
 
 # url = "https://filmix.my/mults/otechestvennye/52316-v-priklyucheniya-vasi-kurolesova-1981.html"
 # filmix = ProviderAPI(url)
