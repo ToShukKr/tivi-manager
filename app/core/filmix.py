@@ -10,6 +10,7 @@ class ProviderAPI():
     __version__ = 1.0
 
     def __init__(self, url):
+        self.provider_name = "filmix"
         self.filmix_url = 'https://filmix.my'
         self.url = url
         self.name = self.getName()
@@ -23,7 +24,7 @@ class ProviderAPI():
 
     def decodeBase64(self, encoded_url):
         tokens = (":<:bzl3UHQwaWk0MkdXZVM3TDdB", ":<:SURhQnQwOEM5V2Y3bFlyMGVI", ":<:bE5qSTlWNVUxZ01uc3h0NFFy", ":<:Mm93S0RVb0d6c3VMTkV5aE54", ":<:MTluMWlLQnI4OXVic2tTNXpU")
-        clean_encoded_url = encoded_url[2:].replace("\/","/")
+        clean_encoded_url = encoded_url[2:].replace(r"\/","/")
         while True:
             for token in tokens:
                 clean_encoded_url = clean_encoded_url.replace(token, "")
@@ -59,17 +60,10 @@ class ProviderAPI():
             translation_list.append(i)
         return translation_list
 
-    def getContentURL(self, URL, translation=None):
+    def getContentURL(self, URL, translation_id=0):
         stream_data = self.getStramData(URL)['message']['translations']['video']
-
-        if not translation:
-            try:
-                translation = self.getTranslations()[0]
-            except:
-                translation = 'Original'
-
-        translation_url = stream_data[translation]
-
+        translation_key = list(stream_data.keys())[translation_id] if translation_id in range(len(stream_data)) else list(stream_data.keys())[0]
+        translation_url = stream_data.get(translation_key, list(stream_data.values())[0])
         content_url = self.decodeBase64(translation_url)
         encoded_video_content = requests.get(content_url.decode("UTF-8"), timeout=REQUEST_TIMEOUT)
         return self.decodeBase64(encoded_video_content.content.decode("UTF-8")).decode("UTF-8")
@@ -77,6 +71,13 @@ class ProviderAPI():
     def getESList(self, id):
         # [0] - season, [1] - episode
         return id.split('s')[1].split('e')
+
+    def getContentType(self):
+        try:
+            self.getContentURL(self.url)
+            return "serial"
+        except:
+            return "movie"
 
     def getSeasons(self, translation=None):
         if not translation:
@@ -89,11 +90,8 @@ class ProviderAPI():
             decoded_content_json = self.getContentURL(self.url)
         except:
             content_template = {
-            translation: {
-                "translator_id": 0,
                 "seasons": {1: "Season"},
                 "episodes": {1: "Episode"}
-                }
             }
             return content_template
 
@@ -106,9 +104,9 @@ class ProviderAPI():
             for v in i['folder']:
                 s = self.getESList(v['id'])[0]
                 e = self.getESList(v['id'])[1]
-                series[e] = "Серия {}".format(e)
+                series[e] = "Episode {}".format(e)
 
-            season[s] = "Сезон {}".format(s)
+            season[s] = "Season {}".format(s)
 
             episodes_json = {
             s : series
@@ -116,11 +114,8 @@ class ProviderAPI():
             episode.update(episodes_json)
 
         content_template = {
-        translation: {
-            "translator_id": 0,
             "seasons": season,
             "episodes": episode
-            }
         }
         return content_template
 
@@ -138,12 +133,12 @@ class ProviderAPI():
             if i.startswith(get_quality):
                 return i.replace(get_quality,'')
 
-    def getStream(self, season, episode, quality, translation=None):
+    def getStream(self, season, episode, quality="720p", translation_id=0):
         if not quality in ["360p", "480p", "720p"]:
             available_res = '"360p", "480p", "720p"'
             raise ValueError(f'Resolution "{quality}" is not defined\nUse one of these: {available_res}')
 
-        video_content = eval(self.getContentURL(self.url))
+        video_content = eval(self.getContentURL(self.url, translation_id))
         for i in video_content:
             folder = i['folder']
             for folder in i['folder']:
@@ -162,20 +157,28 @@ class ProviderAPI():
         return self.parseURLs(content_url, quality)
 
 
-# url = "https://filmix.ac/films/drama/2982-nkj-sekretnye-materialy-hochu-verit-2008.html"
-# filmix = ProviderAPI(url)
-# print(filmix.name)
-# print(filmix.getSeasons())
-# print(filmix.getStream('1', '8', '720p'))
+url = "https://filmix.my/multser/komedia/9184-v-l-simpsony-1989.html"
+filmix = ProviderAPI(url)
+print(filmix.name)
+print(filmix.getSeasons())
+print(filmix.getStream('1', '8', '720p'))
 
 # url = "https://filmix.my/mults/otechestvennye/52316-v-priklyucheniya-vasi-kurolesova-1981.html"
 # filmix = ProviderAPI(url)
 # print(filmix.name)
 # print(filmix.getMovie('720p'))
 
-
-url = "https://filmix.my/film/triller/6123-v-ff-terminator-2-sudnyy-den-1991.html"
-filmix = ProviderAPI(url)
-
-print(filmix.getStramData(url))
+# url = "https://filmix.my/film/triller/6123-v-ff-terminator-2-sudnyy-den-1991.html"
+# filmix = ProviderAPI(url)
+#
+# print(filmix.getStramData(url))
 # print(filmix.getMovie())
+
+# url = "https://filmix.my/mults/otechestvennye/52316-v-priklyucheniya-vasi-kurolesova-1981.html"
+# url = "https://filmix.my/seria/semejnye/101429-v--voroniny-2021.html"
+# filmix = ProviderAPI(url)
+# print(filmix.getSeasons())
+
+# url = "https://filmix.my/seria/drama/8349-v-sekretnye-materialy-big-2002.html"
+# filmix = ProviderAPI(url)
+# print(filmix.getStream('8', '12', '720p', 1))
