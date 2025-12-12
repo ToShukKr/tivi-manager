@@ -60,4 +60,4 @@ class Archive:
 
     def list_bucket(self, bucket):
         item = ia.get_item(bucket)
-        return [f.name for f in item.get_files()]
+        return [f.name.replace('.dat', '') for f in item.get_files() if f.name.endswith('.dat')]

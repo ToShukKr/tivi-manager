@@ -14,6 +14,7 @@ class ProviderAPI():
         self.url = url
         self.name = self.getName()
         self.id = self.getID()
+        self.provider_url = self.getProviderURL()
 
     def getProviderURL(self):
         return self.url.split('/')[0:3].__str__().replace("'", "").replace("[", "").replace("]", "").replace(", ", "/")
@@ -50,7 +51,7 @@ class ProviderAPI():
         additional_cookies = "dle_password=483f1fce06d055e8dae9b585551e9603; dle_user_id=1639040"
         combined_cookies = "{}; {}".format(session_cookie, additional_cookies)
 
-        url = "{}{}".format(self.getProviderURL(), "/api/movies/player-data?t=1651831246576")
+        url = "{}{}".format(self.provider_url, "/api/movies/player-data?t=1651831246576")
         payload = {'post_id': id, 'showfull': 'true'}
         files = []
         headers = {'x-requested-with': 'XMLHttpRequest', 'Cookie': combined_cookies}
