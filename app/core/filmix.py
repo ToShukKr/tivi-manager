@@ -1,8 +1,6 @@
 import requests
 import base64
 import re
-from bs4 import BeautifulSoup as bs
-from time import sleep
 
 REQUEST_TIMEOUT = 10
 
@@ -12,9 +10,10 @@ class ProviderAPI():
     def __init__(self, url):
         self.provider_name = "filmix"
         self.url = url
+        self.provider_url = self.getProviderURL()
         self.name = self.getName()
         self.id = self.getID()
-        self.provider_url = self.getProviderURL()
+        self.type = self.getContentType()
 
     def getProviderURL(self):
         return self.url.split('/')[0:3].__str__().replace("'", "").replace("[", "").replace("]", "").replace(", ", "/")
@@ -82,7 +81,7 @@ class ProviderAPI():
         try:
             self.getContentURL(self.url)
             return "serial"
-        except:
+        except Exception as e:
             return "movie"
 
     def getSeasons(self, translation=None):
