@@ -5,10 +5,6 @@ from core import *
 logger = setup_logger("tivi")
 archive = Archive()
 
-def addMetadataToDB(url):
-    filmix = ProviderAPI(url)
-    archive.upload_metadata(id=filmix.id, name=filmix.name, type=filmix.type, content=filmix.getSeasons())
-
 def addMetadataToBucket(url):
     filmix = ProviderAPI(url)
     archive.add_metadata_to_bucket(id=filmix.id, name=filmix.name, type=filmix.type, content=filmix.getSeasons())
@@ -24,8 +20,14 @@ def getContentList(url):
         raise ValueError("Unknown content type")
 
 if __name__ == "__main__":   
-        url = "https://filmix.my/seria/semejnye/101429-v--voroniny-2021.html"        
+        parser = argparse.ArgumentParser(description="TIVI Manager - Download and upload videos to Archive.org")
+        parser.add_argument("--url", required=True, help="Filmix URL to process")
+        args = parser.parse_args()
+
+        url = args.url
         filmix = ProviderAPI(url)
+        logger.info(f"Processing: {filmix.name} ({filmix.type})")
+
         tividb_identifier = f"tividb_{filmix.id}"        
         archive.createArchiveBucket(tividb_identifier)
         in_bucket = set(archive.list_bucket(tividb_identifier))
@@ -40,6 +42,8 @@ if __name__ == "__main__":
         addMetadataToBucket(url)
         logger.info("Metadata in bucket updated")
 
+        archive.addMetadataToDB(filmix)
+        logger.info("Metadata in database updated")
         for item in missing:
             season, episode = item.split('-')
             stream_url = filmix.getStream(season, episode, quality="720p")

@@ -3,7 +3,11 @@ from pathlib import Path
 import logging
 from datetime import datetime
 import requests
-import time    
+import time
+import json
+import base64
+import tempfile
+import argparse
 
 MAGIC = b"TIVI_ENGINE_DATA_CODE\n"
 
