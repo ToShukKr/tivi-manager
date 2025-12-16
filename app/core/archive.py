@@ -135,8 +135,7 @@ class Archive:
             new_item = {
                 "id": filmix.id,
                 "name": filmix.name,
-                "type": filmix.type,
-                "content": filmix.getSeasons()
+                "type": filmix.type
             }
             
             item_found = False
