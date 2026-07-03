@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+
+import requests
+from bs4 import BeautifulSoup
+import re
+import json
+import shutil
+import subprocess
+from time import sleep
+from urllib.parse import urljoin
+
+class ProviderAPI():
+    __version__ = 1.6
+
+    UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+          "(KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36")
+    HEADERS = {
+        "User-Agent": UA,
+        "Referer": "https://api.delivembd.ws/",
+        "Origin": "https://api.delivembd.ws",
+    }
+
+    def __init__(self, kp_id):
+        self.kp_id = kp_id
+        self._page = None
+        self._mk = None
+        self.contentType = self.getContentType()
+        self.type = self.getType()
+        self.title = self.getTitle()
+
+    def getType(self):
+        return 'serial' if "seasons" in (self.getmakePlayerContent() or "") else 'movie'
+
+    def getTitle(self):
+        soup = BeautifulSoup(self.getPageData(), 'html.parser')
+        tag = soup.find('title')
+        return tag.get_text(strip=True) if tag else None
+
+    def getPageData(self):
+        if self._page is not None:
+            return self._page
+        for _ in range(10):
+            r = requests.get(f"https://api.delivembd.ws/embed/kp/{self.kp_id}",
+                             headers=self.HEADERS)
+            if r.status_code == 200:
+                self._page = r.content
+                return self._page
+            if r.status_code == 429:
+                print("Too many requests, waiting 10 seconds")
+                sleep(10)
+                continue
+            print("Failed to retrieve the webpage.")
+            return False
+
+    def getmakePlayerContent(self):
+        if self._mk is not None:
+            return self._mk
+        soup = BeautifulSoup(self.getPageData(), 'html.parser')
+        for script in soup.find_all('script', {'data-name': 'mk'}):
+            if script.string:
+                self._mk = script.string
+                return self._mk
+
+    def getContentType(self):
+        return 'serial' if "seasons" in (self.getmakePlayerContent() or "") else 'movie'
+
+    def getSeriesJSONContent(self):
+        t = self.getmakePlayerContent()
+        s, e = t.find("seasons:[{"), t.find("}]}]")
+        return json.loads("[" + t[s + len("seasons:["):e].strip() + "}]}]")
+
+    def getMovie(self):
+        t = self.getmakePlayerContent()
+        s = t.find("hls:")
+        if s != -1:
+            e = t.find("audio:", s)
+            if e != -1:
+                m = re.search(r'"(.*?)"', t[s:e])
+                if m:
+                    return m.group(1)
+        print("HLS link not found. Looks like it's a series?")
+        return False
+
+    def getStream(self, season, episode):
+        for se in sorted(self.getSeriesJSONContent(), key=lambda x: x['season']):
+            if int(se['season']) == int(season):
+                for ep in se['episodes']:
+                    if int(ep['episode']) == int(episode):
+                        return ep['hls']
+        return None
+
+    def _audioNames(self):
+        """
+        Real dubbing names from mk: audio:{"names":[...],"order":[...]}.
+        Index in array = number in track code (rus8 -> names[8]).
+        '"delete"' = hidden track.
+        """
+        t = self.getmakePlayerContent() or ""
+        m = re.search(r'audio\s*:\s*(\{\s*"names".*?"order"\s*:\s*\[[^\]]*\]\s*\})',
+                      t, re.DOTALL)
+        if not m:
+            return []
+        try:
+            return json.loads(m.group(1)).get("names", [])
+        except json.JSONDecodeError:
+            return []
+
+    # ---------- master.m3u8 parsing ----------
+
+    def _parse(self, master_url):
+        r = requests.get(master_url, headers=self.HEADERS, timeout=30)
+        r.raise_for_status()
+        lines = [l.strip() for l in r.text.splitlines() if l.strip()]
+        names = self._audioNames()
+
+        audios, streams, seen = [], [], set()
+        for i, line in enumerate(lines):
+            if line.startswith("#EXT-X-MEDIA") and "TYPE=AUDIO" in line:
+                cm = re.search(r'NAME="([^"]*)"', line)
+                code = cm.group(1) if cm else ""
+                if code in seen:
+                    continue
+                seen.add(code)
+                grp = re.search(r'GROUP-ID="([^"]*)"', line)
+                uri = re.search(r'URI="([^"]*)"', line)
+                num = re.search(r'(\d+)$', code)          # rus8 -> 8
+                idx = int(num.group(1)) if num else None
+                name = names[idx] if (idx is not None and idx < len(names)) else code
+                audios.append({
+                    "id": idx,
+                    "code": code,
+                    "name": name,
+                    "group": grp.group(1) if grp else "",
+                    "url": urljoin(master_url, uri.group(1)) if uri else None,
+                })
+            elif line.startswith("#EXT-X-STREAM-INF"):
+                res = re.search(r'RESOLUTION=\d+x(\d+)', line)
+                bw = re.search(r'BANDWIDTH=(\d+)', line)
+                agr = re.search(r'AUDIO="([^"]*)"', line)
+                url = next((urljoin(master_url, l) for l in lines[i+1:]
+                            if not l.startswith("#")), None)
+                streams.append({
+                    "height": int(res.group(1)) if res else 0,
+                    "bandwidth": int(bw.group(1)) if bw else 0,
+                    "audio_group": agr.group(1) if agr else None,
+                    "url": url,
+                })
+        return audios, streams
+
+    # 1) translation list (hidden 'delete' not shown) -> [(id, name, code), ...]
+    def listTranslations(self, master_url):
+        audios, _ = self._parse(master_url)
+        return [(a["id"], a["name"], a["code"])
+                for a in audios if a["name"] != "delete"]
+
+    # 2) quality list (ascending height -> [(height, bandwidth), ...])
+    def listQualities(self, master_url):
+        _, streams = self._parse(master_url)
+        uniq = {}
+        for s in streams:
+            if s["height"]:
+                uniq[s["height"]] = max(uniq.get(s["height"], 0), s["bandwidth"])
+        return sorted(([h, bw] for h, bw in uniq.items()), reverse=True)
+
+    def _pickAudio(self, audios, translation):
+        if not audios:
+            return None
+        if translation is None:
+            return next((a for a in audios if a["name"] != "delete"), audios[0])
+        # by ID (number)
+        if isinstance(translation, int) or (isinstance(translation, str) and translation.isdigit()):
+            tid = int(translation)
+            return next((a for a in audios if a["id"] == tid), None) \
+                or next((a for a in audios if a["name"] != "delete"), audios[0])
+        # by name substring or code
+        s = str(translation).lower()
+        return next((a for a in audios
+                     if s in (a["name"] or "").lower() or s in a["code"].lower()),
+                    next((a for a in audios if a["name"] != "delete"), audios[0]))
+
+    def _pickStream(self, streams, audio, quality):
+        pool = streams
+        if audio and any(x["audio_group"] == audio["group"] for x in streams):
+            pool = [x for x in streams if x["audio_group"] == audio["group"]]
+        if quality:
+            pool = [x for x in pool if x["height"] and x["height"] <= int(quality)] or pool
+        return max(pool, key=lambda x: (x["height"], x["bandwidth"]))
+
+    # 3a) links: (video_url, audio_url). audio_url=None -> audio embedded in video
+    def getLink(self, master_url, quality=None, translation=None):
+        audios, streams = self._parse(master_url)
+        audio = self._pickAudio(audios, translation)
+        stream = self._pickStream(streams, audio, quality)
+        chosen = f"{stream['height']}p / " + (audio["name"] if audio else "default")
+        return stream["url"], (audio["url"] if audio and audio.get("url") else None), chosen
+
+    # 3b) single mp4 file (video + selected track), ffmpeg concat without re-encoding
+    def getFile(self, master_url, output="film.mp4", quality=None, translation=None):
+        if shutil.which("ffmpeg") is None:
+            raise RuntimeError("ffmpeg not found. Install: sudo apt install ffmpeg")
+        video_url, audio_url, chosen = self.getLink(master_url, quality, translation)
+        hdr = (f"Referer: {self.HEADERS['Referer']}\r\n"
+               f"Origin: {self.HEADERS['Origin']}\r\n")
+        cmd = ["ffmpeg", "-y", "-user_agent", self.UA, "-headers", hdr, "-i", video_url]
+        if audio_url:
+            cmd += ["-user_agent", self.UA, "-headers", hdr, "-i", audio_url,
+                    "-map", "0:v:0", "-map", "1:a:0"]
+        cmd += ["-c", "copy", "-bsf:a", "aac_adtstoasc", output]
+        print(f"[{chosen}] downloading and merging into {output} ...")
+        subprocess.run(cmd, check=True)
+        print("Done:", output)
+        return output
+
+if __name__ == "__main__":
+    # kp_id = 479090
+    # collaps = ProviderAPI(kp_id)
+    # master = collaps.getStream(1, 5)
+
+    kp_id = "444"
+    collaps = ProviderAPI(kp_id)
+    master = collaps.getMovie()
+
+    print(f"Title: {collaps.title}")
+    print(f"Type: {collaps.type}")
+
+    print("Translations (ID: name [code]):")
+    for tid, name, code in collaps.listTranslations(master):
+        print(f"  {tid}: {name}  [{code}]")
+
+    print("\nQualities (height, bandwidth):")
+    for h, bw in collaps.listQualities(master):
+        print(f"  {h}p  (~{bw//1000} kbps)")
+
+    # --- choose your settings ---
+    QUALITY = None
+    TRANSLATION = "ukr10"      # by name, OR code 'rus8', OR ID 8
+
+    video_url, audio_url, chosen = collaps.getLink(master, quality=QUALITY,
+                                                   translation=TRANSLATION)
+    print("\nSelected:", chosen)
+    print("VIDEO:", video_url)
+    print("AUDIO:", audio_url or "(audio embedded in video)")
+
+    # single mp4 file (skip if not needed):
+    # collaps.getFile(master, output=f"film_{kp_id}.mp4",
+    #                 quality=QUALITY, translation=TRANSLATION)
