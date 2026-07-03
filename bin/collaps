@@ -212,13 +212,13 @@ class ProviderAPI():
         return output
 
 if __name__ == "__main__":
-    # kp_id = 479090
-    # collaps = ProviderAPI(kp_id)
-    # master = collaps.getStream(1, 5)
-
-    kp_id = "444"
+    kp_id = 479090
     collaps = ProviderAPI(kp_id)
-    master = collaps.getMovie()
+    master = collaps.getStream(4, 5)
+
+    # kp_id = "444"
+    # collaps = ProviderAPI(kp_id)
+    # master = collaps.getMovie()
 
     print(f"Title: {collaps.title}")
     print(f"Type: {collaps.type}")
@@ -242,5 +242,5 @@ if __name__ == "__main__":
     print("AUDIO:", audio_url or "(audio embedded in video)")
 
     # single mp4 file (skip if not needed):
-    # collaps.getFile(master, output=f"film_{kp_id}.mp4",
-    #                 quality=QUALITY, translation=TRANSLATION)
+    collaps.getFile(master, output=f"film_{kp_id}.mp4",
+                    quality=QUALITY, translation=TRANSLATION)

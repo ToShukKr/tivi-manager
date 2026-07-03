@@ -1,20 +1,33 @@
 #!/usr/bin/env python3
 
 import os
-import json
+import argparse
 import tempfile
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
 import internetarchive as ia
 
+MAGIC = b"TIVI_ENGINE_DATA_CODE\n"
+
+
+def setup_logger(name):
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+        )
+        logger.addHandler(handler)
+    return logger
+
+
 class Archive:
     def __init__(self):
-        from . import setup_logger
         self.logger = setup_logger("tivi")
-
-        env_path = str(Path(__file__).resolve().parents[1] / ".env")
-        load_dotenv(env_path)
+        self.access_key = os.environ.get("ARCHIVE_ACCESS_KEY")
+        self.secret_key = os.environ.get("ARCHIVE_SECRET_KEY")
 
     def createArchiveBucket(self, bucket):
         item = ia.get_item(bucket)
@@ -28,36 +41,106 @@ class Archive:
             result = ia.upload(
                 bucket,
                 files=[str(keep_file)],
-                metadata={"mediatype": "data", "title": bucket, "creator": "TIVI"},
-                access_key=os.environ.get("ARCHIVE_ACCESS_KEY"),
-                secret_key=os.environ.get("ARCHIVE_SECRET_KEY")
+                metadata={
+                    "mediatype": "data",
+                    "title": bucket,
+                    "creator": "tivi-engine",
+                },
+                access_key=self.access_key,
+                secret_key=self.secret_key,
             )
 
             return any(r.status_code == 200 for r in result)
 
-    def upload(self, file_path, bucket):
+    def encodeVideo(self, file_path):
+        """Read the file, prepend the MAGIC header, write a .dat next to it, and remove the original."""
+        file_path = Path(file_path)
+        out_path = file_path.with_suffix(".dat")
+
+        self.logger.info(f"Encoding {file_path.name} -> {out_path.name}")
+
+        with open(file_path, "rb") as f:
+            data = f.read()
+
+        with open(out_path, "wb") as f:
+            f.write(MAGIC + data)
+
+        os.remove(file_path)
+        return out_path
+
+    # def decodeVideo(self, file_path):
+    #     """
+    #     Reverse of encodeVideo: read a .dat file, verify and strip the MAGIC
+    #     header, then write the original video back out.
+    #
+    #     Returns the path to the decoded file, or raises ValueError if the
+    #     MAGIC header is missing (i.e. the file is not TIVI-encoded).
+    #     """
+    #     file_path = Path(file_path)
+    #
+    #     with open(file_path, "rb") as f:
+    #         data = f.read()
+    #
+    #     # Make sure the file actually starts with our MAGIC marker.
+    #     if not data.startswith(MAGIC):
+    #         raise ValueError(f"{file_path.name} is not a TIVI-encoded file (MAGIC header not found)")
+    #
+    #     # Strip the MAGIC header, keeping only the original payload.
+    #     payload = data[len(MAGIC):]
+    #
+    #     # Drop the .dat suffix to restore the original name.
+    #     out_path = file_path.with_suffix("")
+    #
+    #     self.logger.info(f"Decoding {file_path.name} -> {out_path.name}")
+    #
+    #     with open(out_path, "wb") as f:
+    #         f.write(payload)
+    #
+    #     # Uncomment the next line if you also want to delete the .dat afterwards.
+    #     # os.remove(file_path)
+    #
+    #     return out_path
+
+    def upload(self, file_path, bucket, remote_name=None):
+        """
+        Upload a file to the bucket.
+        remote_name is the path/name inside the bucket (e.g. 'series/12345.dat').
+        """
         file_path = Path(file_path)
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
         file_size = file_path.stat().st_size
-        attempt = 1
 
+        # If a remote name is given, map the local path to the path inside the archive.
+        if remote_name:
+            files = {remote_name: str(file_path)}
+        else:
+            files = [str(file_path)]
+
+        attempt = 1
         while True:
-            self.logger.info(f"Uploading {file_path.name} ({file_size / 1024 / 1024:.2f} MB) to {bucket}... (attempt {attempt})")
+            self.logger.info(
+                f"Uploading {file_path.name} "
+                f"({file_size / 1024 / 1024:.2f} MB) to {bucket}"
+                + (f" as {remote_name}" if remote_name else "")
+                + f"... (attempt {attempt})"
+            )
 
             try:
                 result = ia.upload(
                     bucket,
-                    files=[str(file_path)],
-                    access_key=os.environ.get("ARCHIVE_ACCESS_KEY"),
-                    secret_key=os.environ.get("ARCHIVE_SECRET_KEY"),
-                    verbose=True
+                    files=files,
+                    access_key=self.access_key,
+                    secret_key=self.secret_key,
+                    verbose=True,
                 )
 
                 success = any(r.status_code == 200 for r in result)
                 if success:
-                    self.logger.info(f"{file_path.name} uploaded successfully to {bucket}")
+                    self.logger.info(
+                        f"{file_path.name} uploaded successfully to {bucket}"
+                    )
                     os.remove(file_path)
                     return True
             except Exception as e:
@@ -65,126 +148,67 @@ class Archive:
 
             attempt += 1
 
-    def list_bucket(self, bucket):
-        item = ia.get_item(bucket)
-        return [f.name.replace('.dat', '') for f in item.get_files() if f.name.endswith('.dat')]
+    def upload_video(self, file, bucket, kp_id):
+            """
+            Full cycle: encode the video + upload it to the bucket under the right path.
 
-    def upload_metadata(self, id, name, type, content):
-        bucket="tivi_metadata"
-        self.createArchiveBucket(bucket)
-        metadata = {
-            "id": id,
-            "name": name,
-            "type": type,
-            "content": content
-        }
+            Final path inside the bucket: <kp_id>/<filename>.dat
+            (e.g. series/12345/episode01.dat or movies/67890/movie.dat)
+            """
+            file_path = Path(file)
+            if not file_path.exists():
+                raise FileNotFoundError(f"File not found: {file_path}")
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            json_file = Path(tmp_dir) / f"{id}.json"
-            with open(json_file, "w", encoding="utf-8") as f:
-                json.dump(metadata, f, ensure_ascii=False, indent=2)
+            # Grab the original filename (without extension) before we encode,
+            # since encodeVideo replaces the suffix with .dat.
+            filename = file_path.stem
 
-            self.upload(str(json_file), bucket)
+            self.createArchiveBucket(bucket)
 
-    def add_metadata_to_bucket(self, id, name, type, content):
-        bucket = f"tividb_{id}"
-        self.createArchiveBucket(bucket)
-        metadata = {
-            "id": id,
-            "name": name,
-            "type": type,
-            "content": content
-        }
+            # 1. Encode the video -> get a .dat file with the MAGIC header.
+            encoded_path = self.encodeVideo(file_path)
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            json_file = Path(tmp_dir) / f"metadata.json"
-            with open(json_file, "w", encoding="utf-8") as f:
-                json.dump(metadata, f, ensure_ascii=False, indent=2)
+            parts = []
+            parts.append(str(kp_id))
+            parts.append(f"{filename}.dat")
+            remote_name = "/".join(parts)
 
-            self.upload(str(json_file), bucket)
+            # 3. Upload.
+            return self.upload(encoded_path, bucket, remote_name=remote_name)
 
-    def addMetadataToDB(self, filmix):
-        bucket = "tivi_metadata"
-        metadata_file = "metadata.json"
-        try:
-            try:
-                item = ia.get_item(bucket)
-                files = item.get_files()
-                metadata_file_obj = None
 
-                for f in files:
-                    if f.name == metadata_file:
-                        metadata_file_obj = f
-                        break
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Encode a video file (add the TIVI MAGIC header) and upload it to an archive.org bucket."
+    )
+    parser.add_argument(
+        "--bucket",
+        default="tivi_db",
+        help="Destination bucket on archive.org (default: tivi_db)",
+    )
+    parser.add_argument(
+        "--file",
+        required=True,
+        help="Path to the video file on the local system",
+    )
+    parser.add_argument(
+        "--kp_id",
+        required=True,
+        help="File ID (used as the <kp_id>.dat name inside the bucket)",
+    )
+    return parser.parse_args()
 
-                if metadata_file_obj:
-                    response = requests.get(f"https://archive.org/download/{bucket}/{metadata_file}")
-                    response.raise_for_status()
-                    encoded_content = response.text
-                else:
-                    encoded_content = base64.b64encode(json.dumps([], ensure_ascii=False).encode()).decode()
-            except Exception as e:
-                encoded_content = base64.b64encode(json.dumps([], ensure_ascii=False).encode()).decode()
 
-            try:
-                decoded_json = base64.b64decode(encoded_content).decode('utf-8')
-                metadata_list = json.loads(decoded_json)
-            except Exception as e:
-                metadata_list = []
+def main():
+    args = parse_args()
 
-            new_item = {
-                "id": filmix.id,
-                "name": filmix.name,
-                "type": filmix.type
-            }
+    archive = Archive()
+    archive.upload_video(
+        file=args.file,
+        bucket=args.bucket,
+        kp_id=args.kp_id,
+    )
 
-            item_found = False
-            for i, item in enumerate(metadata_list):
-                if item.get("id") == filmix.id:
-                    metadata_list[i] = new_item
-                    item_found = True
-                    break
 
-            if not item_found:
-                metadata_list.append(new_item)
-
-            new_encoded_content = base64.b64encode(json.dumps(metadata_list, ensure_ascii=False, indent=2).encode()).decode()
-            backup_filename = f"metadata.json_{datetime.now().strftime('%d-%m-%Y-%H-%M-%S')}"
-
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                tmp_path = Path(tmp_dir)
-
-                new_metadata_path = tmp_path / metadata_file
-                with open(new_metadata_path, 'w', encoding='utf-8') as f:
-                    f.write(new_encoded_content)
-
-                backup_path = tmp_path / backup_filename
-                with open(backup_path, 'w', encoding='utf-8') as f:
-                    f.write(encoded_content)
-
-                self.createArchiveBucket(bucket)
-
-                result1 = ia.upload(
-                    bucket,
-                    files=[str(new_metadata_path)],
-                    access_key=os.environ.get("ARCHIVE_ACCESS_KEY"),
-                    secret_key=os.environ.get("ARCHIVE_SECRET_KEY"),
-                    verbose=False
-                )
-                success1 = any(r.status_code == 200 for r in result1)
-
-                result2 = ia.upload(
-                    bucket,
-                    files=[str(backup_path)],
-                    access_key=os.environ.get("ARCHIVE_ACCESS_KEY"),
-                    secret_key=os.environ.get("ARCHIVE_SECRET_KEY"),
-                    verbose=False
-                )
-                success2 = any(r.status_code == 200 for r in result2)
-
-            if success1 and success2:
-                return True
-            else:
-                return False
-
-        except Exception as e:
+if __name__ == "__main__":
+    main()
