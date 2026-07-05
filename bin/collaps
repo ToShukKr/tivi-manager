@@ -264,7 +264,14 @@ def main():
     collaps = ProviderAPI(args.kp_id)
 
     if args.metadata:
-        print(collaps.getSeasons())
+        seasons = collaps.getSeasons()
+        if collaps.contentType == 'serial':
+            master = collaps.getStream(1, 1)
+            translations = collaps.listTranslations(master)
+            qualities = collaps.listQualities(master)
+            seasons['result']['translations'] = {str(tid): {"name": name, "code": code} for tid, name, code in translations}
+            seasons['result']['qualities'] = [{"height": h, "bandwidth": bw} for h, bw in qualities]
+        print(json.dumps(seasons, indent=2))
         exit(0)
 
     if collaps.contentType == 'serial':
