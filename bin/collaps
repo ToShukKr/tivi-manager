@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 import re
 import json
 import shutil
+import os
 import argparse
 import subprocess
 from time import sleep
@@ -288,10 +289,21 @@ def main():
     video_url, audio_url, chosen = collaps.getLink(master, quality=args.quality, translation=args.translation)
 
     if args.download:
+        duration = ""
+        try:
+            r = requests.get(video_url, headers=collaps.HEADERS, timeout=30)
+            durations = re.findall(r'#EXTINF:([0-9.]+)', r.text)
+            duration = str(int(sum(float(d) for d in durations)))
+        except Exception:
+            pass
+
+        translation = chosen.split(" / ", 1)[1] if " / " in chosen else "default"
+
         if collaps.contentType == 'serial':
-            output_filename = f"{args.kp_id}-{args.season}-{args.episode}.mp4"
+            filename = f"{args.kp_id}-{args.season}-{args.episode}-{duration}-{translation}.mp4"
         else:
-            output_filename = f"0-0.mp4"
+            filename = f"{args.kp_id}-0-0-{duration}-{translation}.mp4"
+        output_filename = os.path.join(args.download, filename)
         collaps.getFile(master, output=output_filename, quality=args.quality, translation=args.translation)
     else:
         print(json.dumps({"selected": chosen, "video_url": video_url, "audio_url": audio_url}, indent=2))
