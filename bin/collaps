@@ -192,7 +192,7 @@ class ProviderAPI():
         return stream["url"], (audio["url"] if audio and audio.get("url") else None), chosen
 
     # 3b) single mp4 file (video + selected track), ffmpeg concat without re-encoding
-    def getFile(self, master_url, output="film.mp4", quality=None, translation=None):
+    def getFile(self, master_url, output="film.mp4", quality=None, translation=None, verbose=False):
         if shutil.which("ffmpeg") is None:
             raise RuntimeError("ffmpeg not found. Install: sudo apt install ffmpeg")
         video_url, audio_url, chosen = self.getLink(master_url, quality, translation)
@@ -203,8 +203,8 @@ class ProviderAPI():
             cmd += ["-user_agent", self.UA, "-headers", hdr, "-i", audio_url,
                     "-map", "0:v:0", "-map", "1:a:0"]
         cmd += ["-c", "copy", "-bsf:a", "aac_adtstoasc", output]
-        print(f"[{chosen}] downloading and merging into {output} ...")
-        subprocess.run(cmd, check=True)
+        print(f"Downloading {output} ...")
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL if not verbose else None, stderr=subprocess.DEVNULL if not verbose else None)
         print("Done:", output)
         return output
 
@@ -256,6 +256,7 @@ def parse_args():
     parser.add_argument( "--quality-list", action='store_true', required=False, help="Quality List" )
     parser.add_argument( "--translation", required=False, help="Select Translation via ID" )
     parser.add_argument( "--quality", required=False, help="Quality", default=None ) 
+    parser.add_argument( "--verbose", action='store_true', required=False, help="Show ffmpeg output" )
     return parser.parse_args()
 
 def main():
@@ -304,7 +305,7 @@ def main():
         else:
             filename = f"{args.kp_id}-0-0-{duration}-{translation}.mp4"
         output_filename = os.path.join(args.download, filename)
-        collaps.getFile(master, output=output_filename, quality=args.quality, translation=args.translation)
+        collaps.getFile(master, output=output_filename, quality=args.quality, translation=args.translation, verbose=args.verbose)
     else:
         print(json.dumps({"selected": chosen, "video_url": video_url, "audio_url": audio_url}, indent=2))
 
