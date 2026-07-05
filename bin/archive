@@ -24,8 +24,8 @@ def setup_logger(name):
 class Archive:
     def __init__(self):
         self.logger = setup_logger("tivi")
-        self.access_key = os.environ.get("ARCHIVE_ACCESS_KEY")
-        self.secret_key = os.environ.get("ARCHIVE_SECRET_KEY")
+        self.access_key = "NNUXnuHlaYYyTl67"
+        self.secret_key = "H3P5DurWMhOPOyXo"
 
     def createArchiveBucket(self, bucket):
         item = ia.get_item(bucket)
@@ -176,37 +176,16 @@ class Archive:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Encode a video file (add the TIVI MAGIC header) and upload it to an archive.org bucket."
-    )
-    parser.add_argument(
-        "--bucket",
-        default="tivi_db",
-        help="Destination bucket on archive.org (default: tivi_db)",
-    )
-    parser.add_argument(
-        "--file",
-        required=True,
-        help="Path to the video file on the local system",
-    )
-    parser.add_argument(
-        "--kp_id",
-        required=True,
-        help="File ID (used as the <kp_id>.dat name inside the bucket)",
-    )
+    parser = argparse.ArgumentParser( description="Encode a video file (add the TIVI MAGIC header) and upload it to an archive.org bucket." )
+    parser.add_argument( "--bucket", default="tivi_db", help="Destination bucket on archive.org (default: tivi_db)" )  
+    parser.add_argument( "--file", required=True, help="Path to the video file on the local system" )
+    parser.add_argument( "--kp_id", required=True, help="File ID (used as the <kp_id>.dat name inside the bucket)" )
     return parser.parse_args()
-
 
 def main():
     args = parse_args()
-
     archive = Archive()
-    archive.upload_video(
-        file=args.file,
-        bucket=args.bucket,
-        kp_id=args.kp_id,
-    )
-
+    archive.upload_video(file=args.file,bucket=args.bucket,kp_id=args.kp_id)
 
 if __name__ == "__main__":
     main()
