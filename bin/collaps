@@ -5,9 +5,11 @@ from bs4 import BeautifulSoup
 import re
 import json
 import shutil
+import argparse
 import subprocess
 from time import sleep
 from urllib.parse import urljoin
+import json
 
 class ProviderAPI():
     __version__ = 1.6
@@ -25,11 +27,7 @@ class ProviderAPI():
         self._page = None
         self._mk = None
         self.contentType = self.getContentType()
-        self.type = self.getType()
-        self.title = self.getTitle()
-
-    def getType(self):
-        return 'serial' if "seasons" in (self.getmakePlayerContent() or "") else 'movie'
+        self.name = self.getTitle()
 
     def getTitle(self):
         soup = BeautifulSoup(self.getPageData(), 'html.parser')
@@ -104,8 +102,6 @@ class ProviderAPI():
             return json.loads(m.group(1)).get("names", [])
         except json.JSONDecodeError:
             return []
-
-    # ---------- master.m3u8 parsing ----------
 
     def _parse(self, master_url):
         r = requests.get(master_url, headers=self.HEADERS, timeout=30)
@@ -211,36 +207,98 @@ class ProviderAPI():
         print("Done:", output)
         return output
 
-if __name__ == "__main__":
-    kp_id = 479090
-    collaps = ProviderAPI(kp_id)
-    master = collaps.getStream(4, 5)
+    def getSeasons(self):
+        full_template = {
+                    "result":{
+                      "name": self.name,
+                      "type": self.contentType,
+                      "seasons":{},
+                      "episodes":{}
+                     }
+                    }
+        season_count_id = 0
+        episodes_count_id = 0
+        seasons_template = {}
+        episodes_template = {}
 
-    # kp_id = "444"
-    # collaps = ProviderAPI(kp_id)
-    # master = collaps.getMovie()
+        if self.contentType == 'serial':
+            sorted_content = sorted(self.getSeriesJSONContent(), key=lambda x: x['season'])
+            for se in sorted_content:
+                for ep in se['episodes']:
+                    season_count_id = season_count_id  + 1
+                    seasons_template[se['season']] = "Season"
+                full_template['result']['seasons'] = seasons_template
+                season_count_id = 0
+            for se in sorted_content:
+                current_episodes_template = {}
+                episodes_count_id = episodes_count_id  + 1
+                current_episodes_count_id = 0
+                for ep in se['episodes']:
+                    current_episodes_count_id = current_episodes_count_id + 1
+                    current_episodes_template[current_episodes_count_id] = ep['title']
+                episodes_template[episodes_count_id] = current_episodes_template
+            full_template['result']['episodes'] = episodes_template
 
-    print(f"Title: {collaps.title}")
-    print(f"Type: {collaps.type}")
+        if self.contentType == 'movie':
+            full_template['result']['episodes'] = {1: 'Episode'}
+            full_template['result']['seasons'] = {1: 'Season'}
+        return full_template
 
-    print("Translations (ID: name [code]):")
-    for tid, name, code in collaps.listTranslations(master):
-        print(f"  {tid}: {name}  [{code}]")
+def parse_args():
+    parser = argparse.ArgumentParser(description="Provider API for fetching video streams and metadata")
+    parser.add_argument( "--kp_id", required=True, help="Kinopoisk ID" )
+    parser.add_argument( "--season", required=False, help="Serial season number", default=None )
+    parser.add_argument( "--episode", required=False, help="Serial episode number", default=None )
+    parser.add_argument( "--download", required=False, help="Download mp4" )
+    parser.add_argument( "--metadata", action='store_true', required=False, help="Show metadata" )
+    parser.add_argument( "--translations-list", action='store_true', required=False, help="Translations List" )
+    parser.add_argument( "--quality-list", action='store_true', required=False, help="Quality List" )
+    parser.add_argument( "--translation", required=False, help="Select Translation via ID" )
+    parser.add_argument( "--quality", required=False, help="Quality", default=None ) 
+    return parser.parse_args()
 
-    print("\nQualities (height, bandwidth):")
-    for h, bw in collaps.listQualities(master):
-        print(f"  {h}p  (~{bw//1000} kbps)")
+def main():
+    args = parse_args()
+    collaps = ProviderAPI(args.kp_id)
 
-    # --- choose your settings ---
-    QUALITY = None
-    TRANSLATION = "ukr10"      # by name, OR code 'rus8', OR ID 8
+    if args.metadata:
+        print(collaps.getSeasons())
+        exit(0)
 
-    video_url, audio_url, chosen = collaps.getLink(master, quality=QUALITY,
-                                                   translation=TRANSLATION)
-    print("\nSelected:", chosen)
-    print("VIDEO:", video_url)
-    print("AUDIO:", audio_url or "(audio embedded in video)")
+    if collaps.contentType == 'serial':
+        if args.season is None or args.episode is None:
+            print("For serials, please provide both --season and --episode arguments.")
+            exit(1)
+        master = collaps.getStream(args.season, args.episode)
+    else:
+        master = collaps.getMovie()
+
+    if args.translations_list:
+        translations = collaps.listTranslations(master)
+        result = {str(tid): {"name": name, "code": code} for tid, name, code in translations}
+        print(json.dumps(result, indent=2))
+        exit(0)
+
+    if args.quality_list:
+        qualities = collaps.listQualities(master)
+        result = [{"height": h, "bandwidth": bw} for h, bw in qualities]
+        print(json.dumps(result, indent=2))
+        exit(0)
+
+    video_url, audio_url, chosen = collaps.getLink(master, quality=args.quality, translation=args.translation)
+
+    if args.download:
+        if collaps.contentType == 'serial':
+            output_filename = f"{args.kp_id}-{args.season}-{args.episode}.mp4"
+        else:
+            output_filename = f"0-0.mp4"
+        collaps.getFile(master, output=output_filename, quality=args.quality, translation=args.translation)
+    else:
+        print(json.dumps({"selected": chosen, "video_url": video_url, "audio_url": audio_url}, indent=2))
 
     # single mp4 file (skip if not needed):
-    collaps.getFile(master, output=f"film_{kp_id}.mp4",
-                    quality=QUALITY, translation=TRANSLATION)
+    # collaps.getFile(master, output=f"film_{args.kp_id}.mp4",quality=args.quality, translation=translation)
+
+
+if __name__ == "__main__":
+    main()

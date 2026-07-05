@@ -5,11 +5,9 @@ import argparse
 import tempfile
 import logging
 from pathlib import Path
-from dotenv import load_dotenv
 import internetarchive as ia
 
 MAGIC = b"TIVI_ENGINE_DATA_CODE\n"
-
 
 def setup_logger(name):
     logger = logging.getLogger(name)
