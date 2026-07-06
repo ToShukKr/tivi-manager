@@ -299,14 +299,12 @@ def main():
 
     if args.translations_list:
         translations = get_translations_list(collaps, master)
-        result = {str(tid): {"name": name, "code": code} for tid, name, code in translations}
-        print(json.dumps(result, indent=2))
+        print(json.dumps(translations, indent=2))
         exit(0)
 
     if args.quality_list:
         qualities = get_quality_list(collaps, master)
-        result = [{"height": h, "bandwidth": bw} for h, bw in qualities]
-        print(json.dumps(result, indent=2))
+        print(json.dumps(qualities, indent=2))
         exit(0)
 
     video_url, audio_url, chosen = collaps.getLink(master, quality=args.quality, translation=args.translation)
@@ -320,12 +318,19 @@ def main():
         except Exception:
             pass
 
-        translation = chosen.split(" / ", 1)[1] if " / " in chosen else "default"
+        translation_name = chosen.split(" / ", 1)[1] if " / " in chosen else "default"
+        # Get the code for the selected translation
+        audios, _ = collaps._parse(master)
+        translation_code = "default"
+        for audio in audios:
+            if audio["name"] == translation_name:
+                translation_code = audio["code"]
+                break
 
         if collaps.contentType == 'serial':
-            filename = f"{args.kp_id}-{args.season}-{args.episode}-{duration}-{translation}.mp4"
+            filename = f"{args.kp_id}-{args.season}-{args.episode}-{duration}-{translation_code}.mp4"
         else:
-            filename = f"{args.kp_id}-0-0-{duration}-{translation}.mp4"
+            filename = f"{args.kp_id}-0-0-{duration}-{translation_code}.mp4"
         output_filename = os.path.join(args.download, filename)
         collaps.getFile(master, output=output_filename, quality=args.quality, translation=args.translation, verbose=args.verbose)
     else:

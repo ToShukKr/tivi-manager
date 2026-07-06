@@ -4,6 +4,7 @@ import os
 import argparse
 import tempfile
 import logging
+import json
 from pathlib import Path
 import internetarchive as ia
 
@@ -146,6 +147,47 @@ class Archive:
 
             attempt += 1
 
+    def list_bucket_files(self, bucket, prefix=None):
+        """
+        List files in an archive.org bucket.
+        Returns a list of file metadata dictionaries.
+        """
+        item = ia.get_item(bucket)
+        if not item.exists:
+            raise FileNotFoundError(f"Bucket not found: {bucket}")
+
+        files = []
+        for file_obj in item.files:
+            file_info = {
+                "name": file_obj.get("name"),
+                "size": file_obj.get("size"),
+                "format": file_obj.get("format"),
+                "mtime": file_obj.get("mtime"),
+                "md5": file_obj.get("md5"),
+                "sha1": file_obj.get("sha1"),
+            }
+            if prefix:
+                if file_info["name"].startswith(prefix):
+                    files.append(file_info)
+            else:
+                files.append(file_info)
+        return files
+
+    def get_kp_id_files(self, bucket, kp_id):
+        """
+        Get all files in the bucket under the kp_id directory.
+        Returns a JSON string with file information.
+        """
+        prefix = f"{kp_id}/"
+        files = self.list_bucket_files(bucket, prefix=prefix)
+        return json.dumps({
+            "bucket": bucket,
+            "kp_id": kp_id,
+            "prefix": prefix,
+            "count": len(files),
+            "files": files
+        }, indent=2, ensure_ascii=False)
+
     def upload_video(self, file, bucket, kp_id):
             """
             Full cycle: encode the video + upload it to the bucket under the right path.
@@ -173,15 +215,26 @@ class Archive:
 
 def parse_args():
     parser = argparse.ArgumentParser( description="Encode a video file (add the TIVI MAGIC header) and upload it to an archive.org bucket." )
-    parser.add_argument( "--bucket", default="tivi_db", help="Destination bucket on archive.org (default: tivi_db)" )  
-    parser.add_argument( "--file", required=True, help="Path to the video file on the local system" )
-    parser.add_argument( "--kp-id", required=True, help="File ID (used as the <kp_id>.dat name inside the bucket)" )
+    parser.add_argument( "--bucket", default="tivi_db", help="Destination bucket on archive.org (default: tivi_db)" )
+    parser.add_argument( "--file", help="Path to the video file on the local system" )
+    parser.add_argument( "--kp-id", help="File ID (used as the <kp_id>.dat name inside the bucket)" )
+    parser.add_argument( "--get", action="store_true", help="Get JSON list of files in the bucket under the kp_id directory" )
     return parser.parse_args()
 
 def main():
     args = parse_args()
     archive = Archive()
-    archive.upload_video(file=args.file,bucket=args.bucket,kp_id=args.kp_id)
+
+    if args.get:
+        if not args.kp_id:
+            print("Error: --kp-id is required when using --get")
+            return
+        print(archive.get_kp_id_files(args.bucket, args.kp_id))
+    else:
+        if not args.file or not args.kp_id:
+            print("Error: --file and --kp-id are required for upload")
+            return
+        archive.upload_video(file=args.file, bucket=args.bucket, kp_id=args.kp_id)
 
 if __name__ == "__main__":
     main()
