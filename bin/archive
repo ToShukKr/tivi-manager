@@ -157,13 +157,9 @@ class Archive:
             if not file_path.exists():
                 raise FileNotFoundError(f"File not found: {file_path}")
 
-            # Grab the original filename (without extension) before we encode,
-            # since encodeVideo replaces the suffix with .dat.
+
             filename = file_path.stem
-
             self.createArchiveBucket(bucket)
-
-            # 1. Encode the video -> get a .dat file with the MAGIC header.
             encoded_path = self.encodeVideo(file_path)
 
             parts = []
@@ -179,7 +175,7 @@ def parse_args():
     parser = argparse.ArgumentParser( description="Encode a video file (add the TIVI MAGIC header) and upload it to an archive.org bucket." )
     parser.add_argument( "--bucket", default="tivi_db", help="Destination bucket on archive.org (default: tivi_db)" )  
     parser.add_argument( "--file", required=True, help="Path to the video file on the local system" )
-    parser.add_argument( "--kp_id", required=True, help="File ID (used as the <kp_id>.dat name inside the bucket)" )
+    parser.add_argument( "--kp-id", required=True, help="File ID (used as the <kp_id>.dat name inside the bucket)" )
     return parser.parse_args()
 
 def main():
