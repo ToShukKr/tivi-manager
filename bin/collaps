@@ -245,6 +245,27 @@ class ProviderAPI():
             full_template['result']['seasons'] = {1: 'Season'}
         return full_template
 
+def get_metadata(collaps):
+    """Get metadata including seasons, translations, and qualities."""
+    seasons = collaps.getSeasons()
+    if collaps.contentType == 'serial':
+        master = collaps.getStream(1, 1)
+        translations = collaps.listTranslations(master)
+        qualities = collaps.listQualities(master)
+        seasons['result']['translations'] = {str(tid): {"name": name, "code": code} for tid, name, code in translations}
+        seasons['result']['qualities'] = [{"height": h, "bandwidth": bw} for h, bw in qualities]
+    return seasons
+
+def get_translations_list(collaps, master_url):
+    """Get list of translations."""
+    translations = collaps.listTranslations(master_url)
+    return {str(tid): {"name": name, "code": code} for tid, name, code in translations}
+
+def get_quality_list(collaps, master_url):
+    """Get list of qualities."""
+    qualities = collaps.listQualities(master_url)
+    return [{"height": h, "bandwidth": bw} for h, bw in qualities]
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Provider API for fetching video streams and metadata")
     parser.add_argument( "--kp_id", required=True, help="Kinopoisk ID" )
@@ -264,14 +285,8 @@ def main():
     collaps = ProviderAPI(args.kp_id)
 
     if args.metadata:
-        seasons = collaps.getSeasons()
-        if collaps.contentType == 'serial':
-            master = collaps.getStream(1, 1)
-            translations = collaps.listTranslations(master)
-            qualities = collaps.listQualities(master)
-            seasons['result']['translations'] = {str(tid): {"name": name, "code": code} for tid, name, code in translations}
-            seasons['result']['qualities'] = [{"height": h, "bandwidth": bw} for h, bw in qualities]
-        print(json.dumps(seasons, indent=2))
+        result = get_metadata(collaps)
+        print(json.dumps(result, indent=2))
         exit(0)
 
     if collaps.contentType == 'serial':
@@ -283,13 +298,13 @@ def main():
         master = collaps.getMovie()
 
     if args.translations_list:
-        translations = collaps.listTranslations(master)
+        translations = get_translations_list(collaps, master)
         result = {str(tid): {"name": name, "code": code} for tid, name, code in translations}
         print(json.dumps(result, indent=2))
         exit(0)
 
     if args.quality_list:
-        qualities = collaps.listQualities(master)
+        qualities = get_quality_list(collaps, master)
         result = [{"height": h, "bandwidth": bw} for h, bw in qualities]
         print(json.dumps(result, indent=2))
         exit(0)
@@ -315,10 +330,6 @@ def main():
         collaps.getFile(master, output=output_filename, quality=args.quality, translation=args.translation, verbose=args.verbose)
     else:
         print(json.dumps({"selected": chosen, "video_url": video_url, "audio_url": audio_url}, indent=2))
-
-    # single mp4 file (skip if not needed):
-    # collaps.getFile(master, output=f"film_{args.kp_id}.mp4",quality=args.quality, translation=translation)
-
 
 if __name__ == "__main__":
     main()
