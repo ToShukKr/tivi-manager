@@ -118,7 +118,7 @@ class Archive:
         else:
             files = [str(file_path)]
 
-        max_attempts = 5
+        max_attempts = 1000
         attempt = 1
         while attempt <= max_attempts:
             self.logger.info(
