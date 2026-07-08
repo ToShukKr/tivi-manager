@@ -209,9 +209,12 @@ class Archive:
             if f.get('name') == remote_name:
                 # Download the file
                 file_obj = item.get_file(remote_name)
-                with open(local_path, 'wb') as f_out:
-                    file_obj.write_to(f_out)
-                return True
+                try:
+                    file_obj.download(local_path)
+                    return True
+                except Exception as e:
+                    self.logger.error(f"Failed to download {remote_name}: {e}")
+                    return False
         return False
 
 
