@@ -21,6 +21,7 @@ import re
 import json
 import argparse
 import logging
+import tempfile
 
 # Make bin/ importable
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin"))
@@ -143,16 +144,59 @@ def download_episode(collaps, kp_id, season, episode, quality, translation,
 
 
 # ---------------------------------------------------------------------------
+# Helper: metadata caching
+# ---------------------------------------------------------------------------
+
+def get_or_fetch_metadata(kp_id, bucket, archive, dry_run):
+    """
+    Try to get metadata from bucket cache.
+    If not present or failed to load, fetch from collaps, cache (unless dry_run), and return.
+    Returns (metadata, collaps) where collaps is a ProviderAPI instance.
+    """
+    # Try to download cached metadata
+    metadata_json_path = os.path.join(tempfile.gettempdir(), f"{kp_id}_metadata.json")
+    if archive.download_file(bucket, f"{kp_id}/metadata.json", metadata_json_path):
+        try:
+            with open(metadata_json_path, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            logger.info(f"Using cached metadata for kp_id={kp_id} from bucket.")
+            # We still need to create collaps instance for later use.
+            collaps = ProviderAPI(kp_id)
+            return metadata, collaps
+        except Exception as e:
+            logger.warning(f"Failed to load cached metadata: {e}")
+    # Fetch from collaps
+    collaps = ProviderAPI(kp_id)
+    metadata = get_metadata(collaps)
+    # Cache it unless dry_run
+    if not dry_run:
+        # Write metadata to temp file
+        with open(metadata_json_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+        # Upload to bucket
+        logger.info(f"Caching metadata for kp_id={kp_id} to bucket.")
+        archive.upload(metadata_json_path, bucket, remote_name=f"{kp_id}/metadata.json")
+        # Clean up temp file? We'll leave it; it's in temp directory.
+    else:
+        logger.info(f"Dry run: not caching metadata to bucket.")
+    return metadata, collaps
+
+
+# ---------------------------------------------------------------------------
 # Main flow
 # ---------------------------------------------------------------------------
 
 def run(kp_id, bucket, quality, translation, download_dir, dry_run, verbose):
     logger.info(f"=== TiVi Manager: kp_id={kp_id}, bucket={bucket} ===")
 
-    # 1) Fetch metadata
-    logger.info("Fetching metadata from provider...")
-    collaps = ProviderAPI(kp_id)
-    metadata = get_metadata(collaps)
+    # 0) Setup archive
+    archive = Archive()
+    logger.info(f"Checking bucket '{bucket}' for existing files...")
+    bucket_files = get_bucket_files(archive, bucket, kp_id)
+
+    # 1) Fetch metadata (with caching)
+    logger.info("Fetching metadata from provider (with caching)...")
+    metadata, collaps = get_or_fetch_metadata(kp_id, bucket, archive, dry_run)
     content_type = metadata.get("result", {}).get("type", "movie")
     title = metadata.get("result", {}).get("name", "Unknown")
     logger.info(f"Title: {title}  |  Type: {content_type}")
@@ -162,12 +206,7 @@ def run(kp_id, bucket, quality, translation, download_dir, dry_run, verbose):
     expected = expected_info["expected"]
     logger.info(f"Expected files: {len(expected)}")
 
-    # 3) Check bucket
-    archive = Archive()
-    logger.info(f"Checking bucket '{bucket}' for existing files...")
-    bucket_files = get_bucket_files(archive, bucket, kp_id)
-
-    # 4) Determine what's missing
+    # 3) Determine what's missing
     missing, present = [], []
     for key, info in sorted(expected.items()):
         s, e = info["season"], info["episode"]
@@ -195,7 +234,7 @@ def run(kp_id, bucket, quality, translation, download_dir, dry_run, verbose):
         logger.info("--dry-run is set, skipping download/upload.")
         return
 
-    # 5) Download + upload missing
+    # 4) Download + upload missing
     os.makedirs(download_dir, exist_ok=True)
     total = len(missing)
     for i, (season, episode, ep_title) in enumerate(missing, 1):

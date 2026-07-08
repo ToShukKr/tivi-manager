@@ -188,6 +188,25 @@ class Archive:
             "files": files
         }, indent=2, ensure_ascii=False)
 
+    def download_file(self, bucket, remote_name, local_path):
+        """
+        Download a file from the bucket to local_path.
+        Returns True if successful, False if file not found.
+        """
+        item = ia.get_item(bucket)
+        if not item.exists:
+            return False
+        # Check if file exists
+        for f in item.files:
+            if f.get('name') == remote_name:
+                # Download the file
+                file_obj = item.get_file(remote_name)
+                with open(local_path, 'wb') as f_out:
+                    file_obj.write_to(f_out)
+                return True
+        return False
+
+
     def upload_video(self, file, bucket, kp_id):
             """
             Full cycle: encode the video + upload it to the bucket under the right path.
