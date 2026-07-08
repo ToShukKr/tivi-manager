@@ -52,7 +52,7 @@ class Archive:
             return any(r.status_code == 200 for r in result)
 
     def encodeVideo(self, file_path):
-        """Read the file, prepend the MAGIC header, write a .dat next to it, and remove the original."""
+        """Read the file, prepend the MAGIC header, write a .dat next to it."""
         file_path = Path(file_path)
         out_path = file_path.with_suffix(".dat")
 
@@ -64,7 +64,7 @@ class Archive:
         with open(out_path, "wb") as f:
             f.write(MAGIC + data)
 
-        os.remove(file_path)
+        # Note: We do not remove the original file here; the caller will handle cleanup.
         return out_path
 
     # def decodeVideo(self, file_path):
@@ -104,6 +104,7 @@ class Archive:
         """
         Upload a file to the bucket.
         remote_name is the path/name inside the bucket (e.g. 'series/12345.dat').
+        Returns True on success, False on failure after max attempts.
         """
         file_path = Path(file_path)
         if not file_path.exists():
@@ -117,13 +118,14 @@ class Archive:
         else:
             files = [str(file_path)]
 
+        max_attempts = 5
         attempt = 1
-        while True:
+        while attempt <= max_attempts:
             self.logger.info(
                 f"Uploading {file_path.name} "
                 f"({file_size / 1024 / 1024:.2f} MB) to {bucket}"
                 + (f" as {remote_name}" if remote_name else "")
-                + f"... (attempt {attempt})"
+                + f"... (attempt {attempt}/{max_attempts})"
             )
 
             try:
@@ -140,12 +142,18 @@ class Archive:
                     self.logger.info(
                         f"{file_path.name} uploaded successfully to {bucket}"
                     )
-                    os.remove(file_path)
+                    # Note: We do not remove the file here; the caller will handle cleanup.
                     return True
+                else:
+                    self.logger.error(f"Upload failed with status codes: {[r.status_code for r in result]}")
+
             except Exception as e:
                 self.logger.error(f"Upload error: {e}")
 
             attempt += 1
+
+        self.logger.error(f"Failed to upload {file_path.name} after {max_attempts} attempts.")
+        return False
 
     def list_bucket_files(self, bucket, prefix=None):
         """
@@ -229,7 +237,18 @@ class Archive:
             remote_name = "/".join(parts)
 
             # 3. Upload.
-            return self.upload(encoded_path, bucket, remote_name=remote_name)
+            success = self.upload(encoded_path, bucket, remote_name=remote_name)
+            if success:
+                # Remove both the original file and the encoded file
+                try:
+                    os.remove(file_path)          # Remove the original .mp4
+                    os.remove(encoded_path)       # Remove the .dat file
+                except OSError as e:
+                    self.logger.warning(f"Failed to remove temporary files: {e}")
+                return True
+            else:
+                # If upload failed, we leave the files as they are for potential retry.
+                return False
 
 
 def parse_args():

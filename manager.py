@@ -175,7 +175,14 @@ def get_or_fetch_metadata(kp_id, bucket, archive, dry_run):
             json.dump(metadata, f, ensure_ascii=False, indent=2)
         # Upload to bucket
         logger.info(f"Caching metadata for kp_id={kp_id} to bucket.")
-        archive.upload(metadata_json_path, bucket, remote_name=f"{kp_id}/metadata.json")
+        upload_success = archive.upload(metadata_json_path, bucket, remote_name=f"{kp_id}/metadata.json")
+        # Clean up the temporary file
+        try:
+            os.remove(metadata_json_path)
+        except OSError as e:
+            logger.warning(f"Failed to remove temporary metadata file {metadata_json_path}: {e}")
+        if not upload_success:
+            logger.error(f"Failed to upload metadata for kp_id={kp_id}.")
         # Clean up temp file? We'll leave it; it's in temp directory.
     else:
         logger.info(f"Dry run: not caching metadata to bucket.")
