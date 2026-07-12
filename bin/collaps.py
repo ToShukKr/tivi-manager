@@ -95,12 +95,11 @@ class ProviderAPI():
         '"delete"' = hidden track.
         """
         t = self.getmakePlayerContent() or ""
-        m = re.search(r'audio\s*:\s*(\{\s*"names".*?"order"\s*:\s*\[[^\]]*\]\s*\})',
-                      t, re.DOTALL)
+        m = re.search(r'"names"\s*:\s*(\[.*?\])', t, re.DOTALL)
         if not m:
             return []
         try:
-            return json.loads(m.group(1)).get("names", [])
+            return json.loads(m.group(1))
         except json.JSONDecodeError:
             return []
 
@@ -286,7 +285,7 @@ def main():
 
     if args.metadata:
         result = get_metadata(collaps)
-        print(json.dumps(result, indent=2))
+        print(json.dumps(result, indent=2, ensure_ascii=False))
         exit(0)
 
     if collaps.contentType == 'serial':
@@ -299,12 +298,12 @@ def main():
 
     if args.translations_list:
         translations = get_translations_list(collaps, master)
-        print(json.dumps(translations, indent=2))
+        print(json.dumps(translations, indent=2, ensure_ascii=False))
         exit(0)
 
     if args.quality_list:
         qualities = get_quality_list(collaps, master)
-        print(json.dumps(qualities, indent=2))
+        print(json.dumps(qualities, indent=2, ensure_ascii=False))
         exit(0)
 
     video_url, audio_url, chosen = collaps.getLink(master, quality=args.quality, translation=args.translation)
@@ -334,7 +333,7 @@ def main():
         output_filename = os.path.join(args.download, filename)
         collaps.getFile(master, output=output_filename, quality=args.quality, translation=args.translation, verbose=args.verbose)
     else:
-        print(json.dumps({"selected": chosen, "video_url": video_url, "audio_url": audio_url}, indent=2))
+        print(json.dumps({"selected": chosen, "video_url": video_url, "audio_url": audio_url}, indent=2, ensure_ascii=False))
 
 if __name__ == "__main__":
     main()
