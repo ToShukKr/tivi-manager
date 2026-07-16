@@ -88,15 +88,40 @@ def get_bucket_files(archive, bucket, kp_id):
         return set()
 
     found = set()
+    prefix = f"{kp_id}-"
     for f in data.get("files", []):
         name = f.get("name", "")
         basename = name.split("/")[-1]
         if not basename.endswith(".dat"):
             continue
         stem = basename[:-4]
+        if not stem.startswith(prefix):
+            continue
+        stem = stem[len(prefix):]
         m = re.match(r"(\d+)-(\d+)-", stem)
         if m:
             found.add((int(m.group(1)), int(m.group(2))))
+    return found
+
+
+def get_local_files(download_dir, kp_id):
+    """
+    Return a dict of (season, episode) -> file_path for files already in download_dir.
+    """
+    found = {}
+    if not os.path.exists(download_dir):
+        return found
+
+    for filename in os.listdir(download_dir):
+        if not filename.endswith(".mp4"):
+            continue
+        stem = filename[:-4]
+        m = re.match(rf"{kp_id}-(\d+)-(\d+)-", stem)
+        if m:
+            season, episode = int(m.group(1)), int(m.group(2))
+            file_path = os.path.join(download_dir, filename)
+            if os.path.getsize(file_path) > 0:
+                found[(season, episode)] = file_path
     return found
 
 
@@ -200,6 +225,8 @@ def run(kp_id, bucket, quality, translation, download_dir, dry_run, verbose):
     archive = Archive()
     logger.info(f"Checking bucket '{bucket}' for existing files...")
     bucket_files = get_bucket_files(archive, bucket, kp_id)
+    logger.info(f"Checking local directory '{download_dir}' for existing files...")
+    local_files = get_local_files(download_dir, kp_id)
 
     # 1) Fetch metadata (with caching)
     logger.info("Fetching metadata from provider (with caching)...")
@@ -218,18 +245,21 @@ def run(kp_id, bucket, quality, translation, download_dir, dry_run, verbose):
     for key, info in sorted(expected.items()):
         s, e = info["season"], info["episode"]
         if (s, e) in bucket_files:
-            present.append((s, e, info["title"]))
+            present.append((s, e, info["title"], "bucket"))
+        elif (s, e) in local_files:
+            present.append((s, e, info["title"], "local"))
         else:
             missing.append((s, e, info["title"]))
 
     if present:
-        logger.info(f"Already in bucket ({len(present)}):")
-        for s, e, t in present:
+        logger.info(f"Already present ({len(present)}):")
+        for s, e, t, src in present:
             label = f"S{s:02d}E{e:02d}" if content_type == "serial" else "Movie"
-            logger.info(f"  ✓ {label} — {t}")
+            marker = "✓" if src == "bucket" else "📁"
+            logger.info(f"  {marker} {label} — {t} [{src}]")
 
     if not missing:
-        logger.info("✅ All episodes/movie are already in the bucket. Nothing to do.")
+        logger.info("✅ All episodes/movie are already present. Nothing to do.")
         return
 
     logger.info(f"Missing ({len(missing)}):")
@@ -248,12 +278,17 @@ def run(kp_id, bucket, quality, translation, download_dir, dry_run, verbose):
         label = f"S{season:02d}E{episode:02d}" if content_type == "serial" else "Movie"
         logger.info(f"[{i}/{total}] Processing {label} — {ep_title}")
 
-        logger.info(f"  Downloading {label}...")
-        file_path = download_episode(collaps, kp_id, season, episode,
-                                     quality, translation, download_dir, verbose)
-        if not file_path or not os.path.exists(file_path):
-            logger.error(f"  Download failed for {label}, skipping.")
-            continue
+        # Check if file exists locally (might have been downloaded but not uploaded)
+        if (season, episode) in local_files:
+            file_path = local_files[(season, episode)]
+            logger.info(f"  Found local file: {os.path.basename(file_path)}, skipping download.")
+        else:
+            logger.info(f"  Downloading {label}...")
+            file_path = download_episode(collaps, kp_id, season, episode,
+                                         quality, translation, download_dir, verbose)
+            if not file_path or not os.path.exists(file_path):
+                logger.error(f"  Download failed for {label}, skipping.")
+                continue
 
         logger.info(f"  Uploading {label} to bucket...")
         archive.upload_video(file=file_path, bucket=bucket, kp_id=kp_id)
