@@ -84,7 +84,12 @@ class ProviderAPI():
         for se in sorted(self.getSeriesJSONContent(), key=lambda x: x['season']):
             if int(se['season']) == int(season):
                 for ep in se['episodes']:
-                    if int(ep['episode']) == int(episode):
+                    ep_str = str(ep['episode'])
+                    if '-' in ep_str:
+                        parts = ep_str.split('-')
+                        if int(parts[0]) <= int(episode) <= int(parts[1]):
+                            return ep['hls']
+                    elif int(ep_str) == int(episode):
                         return ep['hls']
         return None
 
